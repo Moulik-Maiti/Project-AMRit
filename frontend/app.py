@@ -32,7 +32,7 @@ st.sidebar.info("Sequence-to-Treatment clinical decision support system.")
 
 st.title("🧬 AMrit: AI Clinical Antibiogram Pipeline")
 
-FASTAPI_URL = "http://127.0.0.1:8000"
+FASTAPI_URL = "https://project-amrit.onrender.com"
 
 tab_pipeline, tab_database, tab_network = st.tabs([
     "🚀 Clinical Pipeline",
