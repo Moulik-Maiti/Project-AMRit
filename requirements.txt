@@ -13,3 +13,5 @@ joblib
 streamlit
 plotly
 pyvis
+shap
+
