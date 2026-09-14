@@ -229,7 +229,7 @@ class CheminformaticsMolecularEngine:
                     "is_intrinsically_resistant": True,
                     "mechanism": int_info["mechanism"],
                     "reference": int_info.get("reference", "EUCAST / CLSI Expert Rules"),
-                    "exclusion_reason": f"Intrinsic Resistance: {int_info["mechanism"]}"
+                    "exclusion_reason": f"Intrinsic Resistance: {int_info['mechanism']}"
                 }
 
         # 2. Biophysical Outer Membrane Porin Size Sieve (Richter-Hergenrother eNTRy Rules)

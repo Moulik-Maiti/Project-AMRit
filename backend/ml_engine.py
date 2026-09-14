@@ -113,7 +113,7 @@ class AMRStackingEngine:
         self.is_loaded = False
         self.bundle = None
         self.chem_engine = CheminformaticsMolecularEngine()
-        self.hopharmacopeia_df = self.chem_engine.pharmacopeia_df
+        self.pharmacopeia_df = self.chem_engine.pharmacopeia_df
         self.explainer = None
         self.load_weights()
 
@@ -349,7 +349,7 @@ class AMRStackingEngine:
                     "cost_per_dose_inr": data["cost_per_dose_inr"],
                     "predicted_mic_mg_l": data["predicted_mic_mg_l"],
                     "eucast_breakpoint_mg_l": data["eucast_breakpoint_mg_l"],
-                    "pd_target_margin": f"{data["pd_target_margin"]}x",
+                    "pd_target_margin": f"{data['pd_target_margin']}x",
                     "susceptibility_confidence": data["susceptibility_confidence"],
                     "pharmacoeconomic_efficiency_score": data["dynamic_efficacy_score"],
                     "clinical_rationale": data["clinical_rationale"]
