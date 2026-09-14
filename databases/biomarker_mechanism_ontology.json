@@ -1,0 +1,242 @@
+{
+  "gyrA": {
+    "gene_name": "DNA Gyrase Subunit A",
+    "cellular_role": "Type II DNA Topoisomerase relieving supercoiling during replication",
+    "active_site_target": "Quinolone Resistance-Determining Region (QRDR) Codons 83 / 87",
+    "mechanism_of_resistance": "Point mutation alters Ser83/Asp87, destroying water-metal ion bridge coordinating quinolone pharmacophore",
+    "targeted_pharmacophores": [
+      "fluoroquinolone_core"
+    ],
+    "aro_id": "ARO:3000206"
+  },
+  "parC": {
+    "gene_name": "DNA Topoisomerase IV Subunit A",
+    "cellular_role": "Decatenation of daughter chromosomes during cell division",
+    "active_site_target": "Topoisomerase IV QRDR Codon 80 / 84",
+    "mechanism_of_resistance": "Point mutation (Ser80Ile) synergizes with gyrA to cause high-level fluoroquinolone refractoriness",
+    "targeted_pharmacophores": [
+      "fluoroquinolone_core"
+    ],
+    "aro_id": "ARO:3000207"
+  },
+  "blaNDM": {
+    "gene_name": "New Delhi Metallo-Beta-Lactamase (Class B1)",
+    "cellular_role": "Zinc-dependent metallo-hydrolase",
+    "active_site_target": "Bimetallic Zn1/Zn2 active site bridging hydroxide",
+    "mechanism_of_resistance": "Hydrolyzes all beta-lactams including carbapenems, cephalosporins, and penicillins (except monobactam aztreonam)",
+    "targeted_pharmacophores": [
+      "beta_lactam_core",
+      "carbapenem_core",
+      "cephalosporin_core"
+    ],
+    "aro_id": "ARO:3000589"
+  },
+  "blaCTX": {
+    "gene_name": "CTX-M Extended-Spectrum Beta-Lactamase (Class A)",
+    "cellular_role": "Serine beta-lactamase",
+    "active_site_target": "Ser70 catalytic active site with flexible omega loop",
+    "mechanism_of_resistance": "Preferentially hydrolyzes oxyimino-cephalosporins (Cefotaxime, Ceftriaxone, Ceftazidime) and penicillins",
+    "targeted_pharmacophores": [
+      "beta_lactam_core",
+      "cephalosporin_core"
+    ],
+    "aro_id": "ARO:3000557"
+  },
+  "blaOXA": {
+    "gene_name": "OXA Oxacillinase / Carbapenemase (Class D)",
+    "cellular_role": "Carboxylated Lys73 serine beta-lactamase",
+    "active_site_target": "Carbamylated lysine-activated catalytic pocket",
+    "mechanism_of_resistance": "Hydrolyzes penicillins and carbapenems; poorly inhibited by clavulanic acid",
+    "targeted_pharmacophores": [
+      "beta_lactam_core",
+      "carbapenem_core",
+      "cephalosporin_core"
+    ],
+    "aro_id": "ARO:3000078"
+  },
+  "blaKPC": {
+    "gene_name": "Klebsiella pneumoniae Carbapenemase (Class A)",
+    "cellular_role": "Serine carbapenemase",
+    "active_site_target": "Deep active site accommodating carbapenem 6-alpha hydroxyethyl group",
+    "mechanism_of_resistance": "Hydrolyzes all penicillins, cephalosporins, and carbapenems",
+    "targeted_pharmacophores": [
+      "beta_lactam_core",
+      "carbapenem_core",
+      "cephalosporin_core"
+    ],
+    "aro_id": "ARO:3000037"
+  },
+  "ampC": {
+    "gene_name": "AmpC Cephalosporinase (Class C)",
+    "cellular_role": "Serine cephalosporinase",
+    "active_site_target": "Tyr150-activated active site pocket",
+    "mechanism_of_resistance": "Constitutive or derepressed hydrolysis of broad-spectrum cephalosporins and penicillins",
+    "targeted_pharmacophores": [
+      "beta_lactam_core",
+      "cephalosporin_core"
+    ],
+    "aro_id": "ARO:3000026"
+  },
+  "ompK36": {
+    "gene_name": "Outer Membrane Porin OmpK36 (OmpC homolog)",
+    "cellular_role": "Hydrophilic solute passive diffusion channel (size cutoff ~600 Da)",
+    "active_site_target": "L3 loop constriction pore",
+    "mechanism_of_resistance": "Porin mutation / deletion restricts entry of carbapenems into the periplasm, synergizing with beta-lactamases",
+    "targeted_pharmacophores": [
+      "carbapenem_core"
+    ],
+    "aro_id": "ARO:3002668"
+  },
+  "mcr": {
+    "gene_name": "Phosphoethanolamine Transferase MCR-1",
+    "cellular_role": "Membrane-bound lipid A remodeling transferase",
+    "active_site_target": "Lipid A 1-phosphate or 4-phosphate headgroup",
+    "mechanism_of_resistance": "Adds phosphoethanolamine to Lipid A, neutralizing negative surface charge and preventing cationic polymyxin binding",
+    "targeted_pharmacophores": [
+      "polymyxin_core"
+    ],
+    "aro_id": "ARO:3003575"
+  },
+  "mecA": {
+    "gene_name": "Alternative Penicillin-Binding Protein PBP2a",
+    "cellular_role": "Transpeptidase cell wall crosslinking enzyme",
+    "active_site_target": "Allosteric and catalytic transpeptidase domain",
+    "mechanism_of_resistance": "Low binding affinity for beta-lactams allows peptidoglycan crosslinking despite high drug concentrations (MRSA phenotype)",
+    "targeted_pharmacophores": [
+      "beta_lactam_core",
+      "cephalosporin_core"
+    ],
+    "aro_id": "ARO:3000618"
+  },
+  "vanA": {
+    "gene_name": "VanA D-Ala-D-Lac Ligase Operon",
+    "cellular_role": "Cell wall peptidoglycan pentapeptide biosynthesis",
+    "active_site_target": "D-Alanyl-D-Lactate peptidoglycan precursor terminus",
+    "mechanism_of_resistance": "Replaces terminal D-Ala-D-Ala with D-Ala-D-Lac, reducing glycopeptide binding affinity 1000-fold (VRE / VRSA)",
+    "targeted_pharmacophores": [
+      "glycopeptide_core"
+    ],
+    "aro_id": "ARO:3000007"
+  },
+  "rpoB": {
+    "gene_name": "DNA-Directed RNA Polymerase Beta Subunit",
+    "cellular_role": "Transcription elongation and RNA synthesis",
+    "active_site_target": "Rifampicin Resistance-Determining Region (RRDR) Codon 450 (E. coli 531)",
+    "mechanism_of_resistance": "Ser450Leu point mutation causes steric clash in the rifamycin-binding pocket, preventing transcription blockade",
+    "targeted_pharmacophores": [
+      "rifamycin_core"
+    ],
+    "aro_id": "ARO:3000216"
+  },
+  "katG": {
+    "gene_name": "Catalase-Peroxidase KatG",
+    "cellular_role": "Oxidative stress defense and pro-drug activator",
+    "active_site_target": "Heme active site Codon 315 (Ser315Thr)",
+    "mechanism_of_resistance": "Impaired catalytic activation of isoniazid prodrug into isonicotinoyl-NAD adduct, conferring high-level INH resistance",
+    "targeted_pharmacophores": [
+      "anti_tb_hydrazide_core"
+    ],
+    "aro_id": "ARO:3000222"
+  },
+  "embB": {
+    "gene_name": "Arabinosyltransferase EmbB",
+    "cellular_role": "Arabinogalactan and lipoarabinomannan cell wall synthesis",
+    "active_site_target": "Transmembrane substrate pocket Codon 306 (Met306Val/Ile)",
+    "mechanism_of_resistance": "Steric hindrance prevents ethambutol binding to the arabinosyltransferase catalytic cleft",
+    "targeted_pharmacophores": [
+      "anti_tb_ethylenediamine_core"
+    ],
+    "aro_id": "ARO:3000228"
+  },
+  "tetM": {
+    "gene_name": "Ribosomal Protection Protein Tet(M)",
+    "cellular_role": "GTPase releasing tetracyclines from ribosomal A-site",
+    "active_site_target": "30S Ribosomal A-site",
+    "mechanism_of_resistance": "Allosterically alters ribosomal decoding site, dislodging tetracyclines without altering 16S sequence",
+    "targeted_pharmacophores": [
+      "tetracycline_core"
+    ],
+    "aro_id": "ARO:3000186"
+  },
+  "armA": {
+    "gene_name": "16S rRNA Methyltransferase ArmA",
+    "cellular_role": "rRNA adenine N7-methyltransferase",
+    "active_site_target": "16S rRNA A-site Guanine 1405 (m7G1405)",
+    "mechanism_of_resistance": "Methylates G1405 in the 16S rRNA A-site, creating steric block against 4,6-disubstituted 2-deoxystreptamine aminoglycosides",
+    "targeted_pharmacophores": [
+      "aminoglycoside_core"
+    ],
+    "aro_id": "ARO:3000596"
+  },
+  "ermB": {
+    "gene_name": "23S rRNA Methyltransferase Erm(B)",
+    "cellular_role": "rRNA adenine N6-dimethyltransferase",
+    "active_site_target": "23S rRNA Peptidyl Transferase Center Adenine 2058 (m6_2A2058)",
+    "mechanism_of_resistance": "Dimethylates A2058 in the 23S rRNA exit tunnel, blocking macrolide and lincosamide binding (MLSB phenotype)",
+    "targeted_pharmacophores": [
+      "macrolide_core"
+    ],
+    "aro_id": "ARO:3000595"
+  },
+  "blaZ": {
+    "gene_name": "Staphylococcal Beta-Lactamase blaZ (Penicillinase)",
+    "cellular_role": "Class A serine beta-lactamase",
+    "active_site_target": "Ser70 catalytic active site",
+    "mechanism_of_resistance": "Rapidly hydrolyzes unprotected penicillins (Amoxicillin, Ampicillin, Penicillin G); requires beta-lactamase inhibitor (Clavulanic acid, Tazobactam) or penicillinase-stable isoxazolyl penicillin",
+    "targeted_pharmacophores": [
+      "beta_lactam_core"
+    ],
+    "aro_id": "ARO:3000574"
+  },
+  "vanB": {
+    "gene_name": "VanB D-Ala-D-Lac Ligase Operon",
+    "cellular_role": "Cell wall peptidoglycan pentapeptide biosynthesis",
+    "active_site_target": "D-Alanyl-D-Lactate peptidoglycan precursor terminus",
+    "mechanism_of_resistance": "Replaces terminal D-Ala-D-Ala with D-Ala-D-Lac upon vancomycin induction (retains susceptibility to teicoplanin)",
+    "targeted_pharmacophores": [
+      "glycopeptide_core"
+    ],
+    "aro_id": "ARO:3000008"
+  },
+  "ompK35": {
+    "gene_name": "Outer Membrane Porin OmpK35 (OmpF homolog)",
+    "cellular_role": "Hydrophilic solute passive diffusion channel (size cutoff ~600 Da)",
+    "active_site_target": "L3 loop constriction pore",
+    "mechanism_of_resistance": "Porin down-regulation or loss restricts entry of cephalosporins and carbapenems into the periplasm",
+    "targeted_pharmacophores": [
+      "carbapenem_core",
+      "cephalosporin_core"
+    ],
+    "aro_id": "ARO:3002667"
+  },
+  "oprD": {
+    "gene_name": "Pseudomonas Outer Membrane Porin OprD",
+    "cellular_role": "Basic amino acid and carbapenem specific entry channel",
+    "active_site_target": "OprD specific carbapenem diffusion channel",
+    "mechanism_of_resistance": "Mutational loss or down-regulation of OprD causes selective carbapenem (Meropenem/Imipenem) impermeability in P. aeruginosa",
+    "targeted_pharmacophores": [
+      "carbapenem_core"
+    ],
+    "aro_id": "ARO:3000787"
+  },
+  "grlA": {
+    "gene_name": "Staphylococcal Topoisomerase IV Subunit A (GrlA)",
+    "cellular_role": "Chromosome decatenation in Gram-positives",
+    "active_site_target": "GrlA QRDR Codon 80 / 84",
+    "mechanism_of_resistance": "Primary target mutation for fluoroquinolones in S. aureus (Ser80Phe/Tyr)",
+    "targeted_pharmacophores": [
+      "fluoroquinolone_core"
+    ],
+    "aro_id": "ARO:3000207"
+  },
+  "inhA": {
+    "gene_name": "Enoyl-ACP Reductase InhA",
+    "cellular_role": "Mycolic acid fatty acid elongation (FAS-II system)",
+    "active_site_target": "Promoter region (-15 C->T mutation) causing InhA target overexpression",
+    "mechanism_of_resistance": "InhA promoter mutation causes low-level isoniazid and ethionamide cross-resistance in M. tuberculosis",
+    "targeted_pharmacophores": [
+      "anti_tb_hydrazide_core"
+    ],
+    "aro_id": "ARO:3000223"
+  }
+}

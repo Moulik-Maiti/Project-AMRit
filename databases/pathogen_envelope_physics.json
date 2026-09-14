@@ -1,0 +1,180 @@
+{
+  "Escherichia coli": {
+    "gram_envelope_type": "Gram-negative",
+    "has_outer_membrane": true,
+    "porin_size_exclusion_cutoff_da": 600.0,
+    "membrane_charge": "Negative (LPS lipid A core)",
+    "permeability_rules": {
+      "max_mw_da": 650.0,
+      "requires_polyamine_uptake_if_large": true,
+      "mycolic_acid_barrier": false
+    },
+    "intrinsic_mechanisms": {}
+  },
+  "Klebsiella pneumoniae": {
+    "gram_envelope_type": "Gram-negative",
+    "has_outer_membrane": true,
+    "porin_size_exclusion_cutoff_da": 600.0,
+    "membrane_charge": "Negative (Capsular polysaccharide + LPS)",
+    "permeability_rules": {
+      "max_mw_da": 650.0,
+      "requires_polyamine_uptake_if_large": true,
+      "mycolic_acid_barrier": false
+    },
+    "intrinsic_mechanisms": {
+      "Amoxicillin": {
+        "mechanism": "Chromosomal SHV-1 / LEN beta-lactamase constitutive expression",
+        "reference": "EUCAST Expert Rules v3.3 (Table 1)"
+      },
+      "Ampicillin": {
+        "mechanism": "Class A chromosomal penicillinase hydrolysis",
+        "reference": "EUCAST Expert Rules v3.3"
+      }
+    }
+  },
+  "Pseudomonas aeruginosa": {
+    "gram_envelope_type": "Gram-negative",
+    "has_outer_membrane": true,
+    "porin_size_exclusion_cutoff_da": 500.0,
+    "membrane_charge": "Highly Impermeable Negative (Low-flux OprF/OprD)",
+    "permeability_rules": {
+      "max_mw_da": 550.0,
+      "requires_polyamine_uptake_if_large": true,
+      "mycolic_acid_barrier": false
+    },
+    "intrinsic_mechanisms": {
+      "Amoxicillin": {
+        "mechanism": "Basal inducible AmpC beta-lactamase and outer membrane impermeability",
+        "reference": "EUCAST Expert Rules v3.3 (Table 12)"
+      },
+      "Cefotaxime": {
+        "mechanism": "High basal AmpC cephalosporinase hydrolysis and MexAB-OprM efflux",
+        "reference": "EUCAST Expert Rules v3.3"
+      },
+      "Ceftriaxone": {
+        "mechanism": "AmpC enzymatic hydrolysis and rapid MexAB-OprM efflux",
+        "reference": "EUCAST Expert Rules v3.3"
+      },
+      "Nalidixic Acid": {
+        "mechanism": "Constitutive MexAB-OprM multidrug efflux pump extrusion",
+        "reference": "EUCAST Expert Rules v3.3"
+      },
+      "Doxycycline": {
+        "mechanism": "Active MexXY-OprM and MexAB-OprM mediated efflux",
+        "reference": "EUCAST Expert Rules v3.3"
+      },
+      "Minocycline": {
+        "mechanism": "Active MexXY-OprM multidrug efflux system",
+        "reference": "CLSI M100 Ed. 34"
+      }
+    }
+  },
+  "Acinetobacter baumannii": {
+    "gram_envelope_type": "Gram-negative",
+    "has_outer_membrane": true,
+    "porin_size_exclusion_cutoff_da": 500.0,
+    "membrane_charge": "Negative (AdeABC active efflux)",
+    "permeability_rules": {
+      "max_mw_da": 550.0,
+      "requires_polyamine_uptake_if_large": true,
+      "mycolic_acid_barrier": false
+    },
+    "intrinsic_mechanisms": {
+      "Amoxicillin": {
+        "mechanism": "Chromosomal OXA-51-like oxacillinase and basal AdeABC efflux",
+        "reference": "EUCAST Expert Rules v3.3 (Table 14)"
+      },
+      "Azithromycin": {
+        "mechanism": "Poor cellular penetration and active AdeABC efflux",
+        "reference": "CLSI M100 Ed. 34"
+      },
+      "Nalidixic Acid": {
+        "mechanism": "Constitutive low-affinity target and intrinsic efflux",
+        "reference": "CLSI M100 Ed. 34"
+      }
+    }
+  },
+  "Staphylococcus aureus": {
+    "gram_envelope_type": "Gram-positive",
+    "has_outer_membrane": false,
+    "porin_size_exclusion_cutoff_da": 50000.0,
+    "membrane_charge": "Positive / Zwitterionic (Teichoic acids + thick peptidoglycan)",
+    "permeability_rules": {
+      "max_mw_da": 3000.0,
+      "requires_polyamine_uptake_if_large": false,
+      "mycolic_acid_barrier": false
+    },
+    "intrinsic_mechanisms": {
+      "Colistin": {
+        "mechanism": "Gram-positive cell wall lacks outer-membrane lipid A target for polymyxin binding",
+        "reference": "EUCAST Expert Rules v3.3 (Table 2)"
+      },
+      "Nalidixic Acid": {
+        "mechanism": "Gram-positive topoisomerase with low quinolone baseline affinity",
+        "reference": "EUCAST Expert Rules v3.3"
+      },
+      "Amoxicillin": {
+        "mechanism": "Epidemic prevalence (>90%) of blaZ staphylococcal beta-lactamase (penicillinase) hydrolyzes unprotected aminopenicillins. Ineffective as monotherapy without beta-lactamase inhibitor (e.g. Clavulanate).",
+        "reference": "EUCAST Expert Rules v3.3 (Table 2 - Staphylococci) & CLSI M100"
+      },
+      "Piperacillin": {
+        "mechanism": "Hydrolyzed by staphylococcal blaZ penicillinase; inactive as monotherapy without Tazobactam.",
+        "reference": "EUCAST Expert Rules v3.3 (Table 2)"
+      }
+    }
+  },
+  "Mycobacterium tuberculosis": {
+    "gram_envelope_type": "Acid-Fast Mycobacteria",
+    "has_outer_membrane": true,
+    "porin_size_exclusion_cutoff_da": 800.0,
+    "membrane_charge": "Hydrophobic waxy mycolic acid barrier",
+    "permeability_rules": {
+      "max_mw_da": 900.0,
+      "requires_polyamine_uptake_if_large": false,
+      "mycolic_acid_barrier": true
+    },
+    "intrinsic_mechanisms": {
+      "Amoxicillin": {
+        "mechanism": "Constitutive chromosomal BlaC beta-lactamase and thick waxy mycolic acid barrier",
+        "reference": "WHO Consolidated Guidelines on Tuberculosis (Module 4)"
+      },
+      "Cefotaxime": {
+        "mechanism": "Mycolic acid impermeability and BlaC cephalosporinase hydrolysis",
+        "reference": "WHO TB Guidelines"
+      },
+      "Ceftriaxone": {
+        "mechanism": "Rapid BlaC enzymatic degradation and lipid envelope barrier",
+        "reference": "WHO TB Guidelines"
+      },
+      "Colistin": {
+        "mechanism": "Absence of standard Gram-negative lipopolysaccharide envelope",
+        "reference": "WHO TB Guidelines"
+      }
+    }
+  },
+  "Neisseria gonorrhoeae": {
+    "gram_envelope_type": "Gram-negative",
+    "has_outer_membrane": true,
+    "porin_size_exclusion_cutoff_da": 600.0,
+    "membrane_charge": "Negative (Lipooligosaccharide LOS)",
+    "permeability_rules": {
+      "max_mw_da": 650.0,
+      "requires_polyamine_uptake_if_large": true,
+      "mycolic_acid_barrier": false
+    },
+    "intrinsic_mechanisms": {
+      "Vancomycin": {
+        "mechanism": "Gram-negative outer membrane excludes bulky glycopeptides",
+        "reference": "CDC / EUCAST STI Guidelines"
+      },
+      "Teicoplanin": {
+        "mechanism": "Bulky lipoglycopeptide excluded by outer membrane",
+        "reference": "EUCAST Expert Rules"
+      },
+      "Colistin": {
+        "mechanism": "Naturally phosphoethanolamine-modified lipid A structure",
+        "reference": "EUCAST Expert Rules"
+      }
+    }
+  }
+}

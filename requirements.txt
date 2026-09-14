@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pydantic
+numpy
+pandas
+scikit-learn
+xgboost
+lightgbm
+pytorch-tabnet
+rdkit
+biopython
+joblib
+streamlit
+plotly
+pyvis

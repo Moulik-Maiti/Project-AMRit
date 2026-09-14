@@ -1,0 +1,93 @@
+{
+  "beta_lactam_core": {
+    "name": "Beta-Lactam 4-Membered Azetidin-2-one Ring",
+    "smarts": "[#6]1(=[#8])[#7][#6][#6]1",
+    "description": "4-membered azetidinone lactam ring acting as suicidal acylating inhibitor for PBP transpeptidases",
+    "target_family": "Penicillin-Binding Proteins (PBPs)",
+    "vulnerable_bond": "Endocyclic amide carbonyl C-N bond"
+  },
+  "carbapenem_core": {
+    "name": "Carbapenem Pyrroline-Fused Beta-Lactam",
+    "smarts": "[#6]1(=[#8])[#7]2[#6][#6][#6]2[#6]1",
+    "description": "Bicyclic carbapenem core with trans-hydroxyethyl group providing beta-lactamase stability",
+    "target_family": "PBP2 / PBP3",
+    "vulnerable_bond": "Strained beta-lactam carbonyl"
+  },
+  "cephalosporin_core": {
+    "name": "Cephalosporin Dihydrothiazine-Fused Beta-Lactam",
+    "smarts": "[#6]1(=[#8])[#7]2[#6][#16][#6][#6]2[#6]1",
+    "description": "Fused 4:6 cephem nucleus with delta-3 double bond and leaving group at C3",
+    "target_family": "PBP1 / PBP2 / PBP3",
+    "vulnerable_bond": "Cephem beta-lactam carbonyl"
+  },
+  "fluoroquinolone_core": {
+    "name": "4-Quinolone-3-Carboxylic Acid Core",
+    "smarts": "c1cc(=O)c(C(=O)O)cn1",
+    "description": "1,4-dihydro-4-oxoquinoline-3-carboxylic acid core chelating Mg2+ in the QRDR pocket",
+    "target_family": "DNA Gyrase (GyrA) and Topoisomerase IV (ParC/GrlA)",
+    "vulnerable_bond": "C3-C4 magnesium-water coordination bridge"
+  },
+  "aminoglycoside_core": {
+    "name": "Aminocyclitol 2-Deoxystreptamine Core",
+    "smarts": "[#6]1[#6]([#7,#8])[#6]([#7,#8])[#6]([#7,#8])[#6]([#7,#8])[#6]1[#7,#8]",
+    "description": "Polycationic aminocyclitol ring with basic amino sugars binding 16S A-site rRNA",
+    "target_family": "30S Ribosomal Subunit (16S rRNA A-site)",
+    "vulnerable_bond": "Amino / Hydroxyl groups susceptible to AAC/APH/ANT modifying enzymes"
+  },
+  "tetracycline_core": {
+    "name": "Naphthacene Carboxamide Core",
+    "smarts": "NC(=O)[C,c]=[C,c]([OH,O-])",
+    "description": "Fused 4-ring carbocyclic system binding reversibly to 30S ribosomal A-site",
+    "target_family": "30S Ribosomal A-site tRNA Binding",
+    "vulnerable_bond": "C1-C3 tricarbonyl system coordinating divalent cations"
+  },
+  "oxazolidinone_core": {
+    "name": "2-Oxazolidone Core Ring",
+    "smarts": "O=C1OCCN1",
+    "description": "Heterocyclic 5-membered ring fitting into the peptidyl transferase center (PTC)",
+    "target_family": "50S Ribosomal Subunit (23S rRNA PTC)",
+    "vulnerable_bond": "C5 acetamidomethyl sidechain"
+  },
+  "polymyxin_core": {
+    "name": "Cationic Cyclic Heptapeptide with Fatty Acyl Tail",
+    "smarts": "CCC(C)CCCC(=O)NC",
+    "description": "Amphipathic polycationic lipopeptide displacing Ca2+/Mg2+ from Lipid A phosphate headgroups",
+    "target_family": "Lipid A Lipopolysaccharide Outer Membrane",
+    "vulnerable_bond": "Dab-lipid A electrostatic interaction network"
+  },
+  "glycopeptide_core": {
+    "name": "Cross-Linked Heptapeptide Aglycone Cage",
+    "smarts": "MW > 1200",
+    "description": "Bulky aromatic heptapeptide cage binding D-Ala-D-Ala terminus of lipid II",
+    "target_family": "Peptidoglycan Cell Wall Precursor D-Ala-D-Ala",
+    "vulnerable_bond": "D-Ala-D-Ala 5-hydrogen-bond binding cleft"
+  },
+  "rifamycin_core": {
+    "name": "Naphthoquinone Ansa-Macrocycle",
+    "smarts": "C=NN1CCN(C)CC1",
+    "description": "Aromatic naphthoquinone spanned by an aliphatic ansa bridge blocking RNA polymerase elongation",
+    "target_family": "DNA-Directed RNA Polymerase Beta Subunit (rpoB)",
+    "vulnerable_bond": "Rifampicin-binding pocket hydrophobic contact residues"
+  },
+  "anti_tb_hydrazide_core": {
+    "name": "Isonicotinoyl Hydrazine Core",
+    "smarts": "[#7]1:[#6]:[#6]:[#6](-[C](=[O])[N][N]):[#6]:[#6]1",
+    "description": "Pyridine-4-carbohydrazide prodrug activated by KatG to form an INH-NAD adduct inhibiting InhA",
+    "target_family": "Enoyl-ACP Reductase (InhA) via KatG Activation",
+    "vulnerable_bond": "Hydrazine nitrogen nucleophilic activation site"
+  },
+  "anti_tb_ethambutol_core": {
+    "name": "N,N-Dialkyl-Ethylenediamine Core",
+    "smarts": "CCC(CO)NCCNC(CC)CO",
+    "description": "Substituted ethylenediamine inhibiting arabinosyl transferase EmbB involved in arabinogalactan synthesis",
+    "target_family": "Arabinosyl Transferase (EmbB)",
+    "vulnerable_bond": "Diamino-dialkyl chelation motif"
+  },
+  "macrolide_core": {
+    "name": "Macrocyclic Lactone Ring",
+    "smarts": "CCC[C,c]OC(=O)[C,c]",
+    "description": "14-16 membered macrocyclic lactone ring reversibly blocking nascent peptide exit tunnel",
+    "target_family": "50S Ribosomal Subunit (23S rRNA Exit Tunnel)",
+    "vulnerable_bond": "Desosamine sugar interacting with A2058"
+  }
+}
