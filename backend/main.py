@@ -43,7 +43,14 @@ ml_engine = AMRStackingEngine()
 ingest_router = UniversalIngestRouter()
 
 
-
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": "AMrit Clinical AMR Platform",
+        "message": "FastAPI backend is running"
+    }
+    
 @app.get("/api/v1/health")
 async def health_check():
     return {
