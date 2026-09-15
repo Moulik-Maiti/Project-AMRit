@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import streamlit.components.v1 as components
 from pyvis.network import Network
 
-st.set_page_config(page_title="AMrit AI: Sequence-to-Treatment", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="AMRit AI: Sequence-to-Treatment", page_icon="🧬", layout="wide")
 
 st.markdown("""
 <style>
@@ -28,10 +28,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.sidebar.image("frontend/logo.jpg", width=120)
-st.sidebar.markdown("## AMrit AI Platform")
+st.sidebar.markdown("## AMRit AI Platform")
 st.sidebar.info("Sequence-to-Treatment clinical decision support system.")
 
-st.title("🧬 AMrit: AI Clinical Antibiogram Pipeline")
+st.title("🧬 AMRit: AI Clinical Antibiogram Pipeline")
 
 FASTAPI_URL = "https://project-amrit.onrender.com"
 
