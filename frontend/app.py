@@ -5,6 +5,7 @@ import pandas as pd
 import json
 import random
 import time
+import tempfile
 import plotly.graph_objects as go
 import streamlit.components.v1 as components
 from pyvis.network import Network
