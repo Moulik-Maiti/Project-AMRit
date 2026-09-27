@@ -1,4 +1,4 @@
-from config import ENSEMBLE_WEIGHTS_PATH
+from config import ENSEMBLE_WEIGHTS_PATH, GENOMIC_CNN_WEIGHTS_PATH
 """
 AMrit Production ML & Chemistry Engine (Layer 2, 3 & 4)
 ========================================================
@@ -115,10 +115,14 @@ class AMRStackingEngine:
         self.chem_engine = CheminformaticsMolecularEngine()
         self.pharmacopeia_df = self.chem_engine.pharmacopeia_df
         self.explainer = None
+        self.genomic_cnn = None
         self.load_weights()
+        self.load_genomic_cnn()
 
     def load_weights(self):
         if os.path.exists(WEIGHTS_PATH):
+            # NOTE: pickle executes code on load. Only ship model bundles produced by
+            # this project's own training pipeline; never load user-supplied files here.
             with open(WEIGHTS_PATH, "rb") as f:
                 self.bundle = pickle.load(f)
             self.xgb = self.bundle["level0_xgb"]
@@ -136,7 +140,21 @@ class AMRStackingEngine:
             self.is_loaded = True
             print("✅ Loaded Stacking Ensemble weights successfully.")
         else:
-            print("⚠️ Model weights not found. Run train_stacking_ensemble.py first.")
+            print("⚠️ Model weights not found. Run backend/train_all_ml_pipeline.py first.")
+
+    def load_genomic_cnn(self):
+        if not GENOMIC_CNN_WEIGHTS_PATH.exists():
+            print("⚠️ Genomic CNN weights not found; raw-sequence scoring disabled.")
+            return
+        try:
+            model = GenomicCNN(seq_len=1000)
+            # weights_only=True refuses arbitrary pickled objects in the checkpoint
+            state = torch.load(GENOMIC_CNN_WEIGHTS_PATH, map_location="cpu", weights_only=True)
+            model.load_state_dict(state)
+            model.eval()
+            self.genomic_cnn = model
+        except Exception as e:
+            print(f"⚠️ Failed to load Genomic CNN weights: {e}")
 
     def _encode_single_sample(self, sample: dict) -> np.ndarray:
         cat_vec = []
@@ -371,6 +389,7 @@ class AMRStackingEngine:
             "status": "success",
             "pathogen": pathogen,
             "detected_variants": variants,
+            "genomic_cnn_resistance_confidence": dl_confidence,
             "amr_classification": epistasis_report["amr_epidemiological_classification"],
             "magiorakos_score": epistasis_report["magiorakos_criteria_score"],
             "epistatic_synergies": epistasis_report["epistatic_synergies"],
