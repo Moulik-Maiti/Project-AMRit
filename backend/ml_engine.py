@@ -126,6 +126,8 @@ class AMRStackingEngine:
         self.pharmacopeia_df = self.chem_engine.pharmacopeia_df
         self.explainer = None
         self.genomic_cnn = None
+        # Per-drug chemistry vectors are deterministic, so compute each once, not per request
+        self._chem_feature_cache: dict[str, list[float]] = {}
         self.load_weights()
         self.load_genomic_cnn()
 
@@ -178,12 +180,15 @@ class AMRStackingEngine:
 
         # Retrieve the highly-upgraded 433-dimensional chemistry vector
         drug = sample.get("Tested_Antibiotic", "Ciprofloxacin")
-        mol = self.chem_engine.get_mol(drug)
-        if mol is not None:
-            smiles = Chem.MolToSmiles(mol)
-            chem_features = self.generate_clinical_chem_features(smiles)
-        else:
-            chem_features = [0.0] * 433
+        chem_features = self._chem_feature_cache.get(drug)
+        if chem_features is None:
+            mol = self.chem_engine.get_mol(drug)
+            if mol is not None:
+                smiles = Chem.MolToSmiles(mol)
+                chem_features = self.generate_clinical_chem_features(smiles)
+            else:
+                chem_features = [0.0] * 433
+            self._chem_feature_cache[drug] = chem_features
 
         raw_vec = np.hstack([cat_vec, chem_features]).astype(np.float32)
         feature_vector = self.scaler.transform(raw_vec.reshape(1, -1))[0]

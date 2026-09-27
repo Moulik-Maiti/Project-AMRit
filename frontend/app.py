@@ -4,6 +4,8 @@
 # Data flows out via requests.post() and JSON is returned here to render.
 # ==================================================================
 import os
+import threading
+import time
 
 import pandas as pd
 import requests
@@ -41,6 +43,13 @@ st.title("🧬 AMRit: AI Clinical Antibiogram Pipeline")
 FASTAPI_URL = os.environ.get("AMRIT_API_URL", "https://project-amrit.onrender.com").rstrip("/")
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
+# The hosted backend runs on Render's free tier, which sleeps after ~15 minutes idle. Waking
+# it (container boot + ML model loading) has been measured at 2+ minutes, so requests wait
+# for the backend explicitly instead of failing on a short read timeout.
+CONNECT_TIMEOUT_S = 10
+BACKEND_WAKE_TIMEOUT_S = float(os.environ.get("AMRIT_BACKEND_WAKE_TIMEOUT", "300"))
+PREDICT_TIMEOUT_S = float(os.environ.get("AMRIT_PREDICT_TIMEOUT", "180"))
+
 SUPPORTED_VARIANTS = [
     "gyrA_S83L", "parC_S80I", "blaNDM-1", "blaKPC-2", "blaOXA-48", "blaCTX-M-15", "mcr-1",
     "ompK36_porin_loss", "penA_mosaic", "rpoB_S450L", "katG_S315T", "mecA", "vanA",
@@ -57,8 +66,9 @@ DEMO_MARKER_MOTIFS = {
 @st.cache_resource
 def get_http_session() -> requests.Session:
     session = requests.Session()
-    retry = Retry(total=3, backoff_factor=0.5, status_forcelist=(502, 503, 504),
-                  allowed_methods=frozenset({"GET", "POST"}))
+    # read=0: never re-send a request whose response timed out; that would multiply the wait
+    retry = Retry(total=3, connect=3, read=0, status=3, backoff_factor=1,
+                  status_forcelist=(502, 503, 504), allowed_methods=frozenset({"GET", "POST"}))
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
@@ -75,28 +85,76 @@ def api_error_message(resp: requests.Response) -> str:
     return f"HTTP {resp.status_code}: {detail or resp.reason}"
 
 
+def backend_is_ready(read_timeout: float) -> bool:
+    """True once the backend answers its health check with the models loaded."""
+    try:
+        # Single attempt (no retrying session): callers poll, and a quick "not yet" keeps page loads fast
+        resp = requests.get(f"{FASTAPI_URL}/api/v1/health", timeout=(CONNECT_TIMEOUT_S, read_timeout))
+        return resp.ok and bool(resp.json().get("models_loaded", True))
+    except (requests.RequestException, ValueError):
+        return False
+
+
+@st.cache_resource(ttl=600, show_spinner=False)
+def start_backend_warmup() -> threading.Thread:
+    """Start waking a sleeping backend as soon as someone opens the app, so it is usually
+    ready by the time they have uploaded a sequence. Re-armed at most every 10 minutes."""
+    thread = threading.Thread(target=backend_is_ready, args=(BACKEND_WAKE_TIMEOUT_S,), daemon=True)
+    thread.start()
+    return thread
+
+
+def ensure_backend_ready() -> bool:
+    """Wait (with a visible explanation) until the backend is up; False if it never comes up."""
+    if backend_is_ready(read_timeout=5):
+        return True
+    deadline = time.monotonic() + BACKEND_WAKE_TIMEOUT_S
+    with st.spinner("Waking up the AMRit prediction engine. After a period of inactivity "
+                    "this can take 2-3 minutes; later requests will be fast..."):
+        while (remaining := deadline - time.monotonic()) > 0:
+            if backend_is_ready(read_timeout=remaining):
+                return True
+            time.sleep(min(5.0, max(deadline - time.monotonic(), 0.0)))
+    return False
+
+
 @st.cache_data(show_spinner=False, max_entries=32)
+def fetch_sequence_loci(seq_text: str) -> list:
+    """Ask the backend to locate resistance target loci. Raises on failure so errors are not cached."""
+    resp = get_http_session().post(f"{FASTAPI_URL}/api/v1/ingest/sequence",
+                                   json={"sequence_data": seq_text, "format": "FASTA"},
+                                   timeout=(CONNECT_TIMEOUT_S, 90))
+    if not resp.ok:
+        raise RuntimeError(api_error_message(resp))
+    loci = []
+    for record in resp.json().get("sequences", []):
+        for pocket_name, info in (record.get("extracted_pockets") or {}).items():
+            loci.append(f"{pocket_name} (target codon: {info.get('target_codon_aa', '?')})")
+    return loci
+
+
 def scan_sequence(seq_text: str) -> dict:
     """Detect demo markers locally, then ask the backend to locate resistance target loci."""
     markers = [name for motif, name in DEMO_MARKER_MOTIFS.items() if motif in seq_text.upper()]
     loci, error = [], None
-    try:
-        resp = get_http_session().post(f"{FASTAPI_URL}/api/v1/ingest/sequence",
-                                       json={"sequence_data": seq_text, "format": "FASTA"}, timeout=30)
-        if resp.ok:
-            for record in resp.json().get("sequences", []):
-                for pocket_name, info in (record.get("extracted_pockets") or {}).items():
-                    loci.append(f"{pocket_name} (target codon: {info.get('target_codon_aa', '?')})")
-        else:
-            error = api_error_message(resp)
-    except requests.RequestException as e:
-        error = f"Backend unreachable: {e.__class__.__name__}"
+    if not ensure_backend_ready():
+        error = "backend did not wake up in time"
+    else:
+        try:
+            loci = fetch_sequence_loci(seq_text)
+        except requests.Timeout:
+            error = "backend timed out"
+        except requests.RequestException as e:
+            error = f"backend unreachable: {e.__class__.__name__}"
+        except RuntimeError as e:
+            error = str(e)
     return {"markers": markers, "loci": loci, "error": error}
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_antibiotics() -> list:
-    resp = get_http_session().get(f"{FASTAPI_URL}/api/v1/database/antibiotics", timeout=30)
+    resp = get_http_session().get(f"{FASTAPI_URL}/api/v1/database/antibiotics",
+                                  timeout=(CONNECT_TIMEOUT_S, 90))
     resp.raise_for_status()
     return resp.json().get("drugs", [])
 
@@ -126,6 +184,8 @@ def chemistry_logic_for(drug_class: str, variants: list) -> str:
         return "Cheminformatics: Loss of KatG activation prevents isoniazid prodrug conversion."
     return "Cheminformatics: Intrinsic or envelope-level resistance for this pathogen–drug pair."
 
+
+start_backend_warmup()
 
 tab_pipeline, tab_database, tab_network = st.tabs([
     "🚀 Clinical Pipeline",
@@ -206,16 +266,26 @@ with tab_pipeline:
                 "isolate_source": "clinical"
             }
             data = None
-            try:
-                pred_res = get_http_session().post(f"{FASTAPI_URL}/api/v1/predict/isolate", json=payload, timeout=60)
-                if pred_res.ok:
-                    data = pred_res.json()
-                else:
-                    status.update(label="❌ Analysis Failed", state="error")
-                    st.error(f"Prediction service error — {api_error_message(pred_res)}")
-            except requests.RequestException as e:
+            if not ensure_backend_ready():
                 status.update(label="❌ Analysis Failed", state="error")
-                st.error(f"Prediction service unreachable ({e.__class__.__name__}). Please try again shortly.")
+                st.error("The prediction engine did not start in time. Please try again in a minute.")
+            else:
+                try:
+                    pred_res = get_http_session().post(f"{FASTAPI_URL}/api/v1/predict/isolate", json=payload,
+                                                       timeout=(CONNECT_TIMEOUT_S, PREDICT_TIMEOUT_S))
+                    if pred_res.ok:
+                        data = pred_res.json()
+                    else:
+                        status.update(label="❌ Analysis Failed", state="error")
+                        st.error(f"Prediction service error — {api_error_message(pred_res)}")
+                except requests.Timeout:
+                    status.update(label="❌ Analysis Failed", state="error")
+                    st.error(f"The prediction took longer than {PREDICT_TIMEOUT_S:.0f}s. "
+                             "The server may be under load; please try again.")
+                except requests.RequestException as e:
+                    status.update(label="❌ Analysis Failed", state="error")
+                    st.error(f"Prediction service unreachable ({e.__class__.__name__}). "
+                             "Please try again shortly.")
 
             if data is not None:
                 status.update(label="✅ Analysis Complete!", state="complete", expanded=False)
@@ -319,17 +389,28 @@ with tab_pipeline:
 
 with tab_database:
     st.subheader("💊 RDKit Cheminformatics Database")
-    try:
-        drugs_data = fetch_antibiotics()
-        if drugs_data:
-            df_drugs = pd.DataFrame(drugs_data)
-            cols = [c for c in ["Antibiotic_Name", "Drug_Class", "Molecular_Weight", "LogP", "Cost_Per_Dose_INR"]
-                    if c in df_drugs.columns]
-            st.dataframe(df_drugs[cols], width="stretch")
-        else:
-            st.info("No antibiotics returned by the database.")
-    except (requests.RequestException, ValueError):
-        st.error("Database unavailable.")
+    # This tab renders on every page load, so never block it on a cold start: if the backend
+    # is still waking (the warm-up thread is already on it), say so and offer a retry.
+    drugs_data = None
+    if not backend_is_ready(read_timeout=5):
+        st.info("⏳ The prediction engine is waking up (this can take 2-3 minutes after a period "
+                "of inactivity). The database will load once it is ready.")
+    else:
+        try:
+            drugs_data = fetch_antibiotics()
+        except requests.Timeout:
+            st.warning("The database request timed out. Please retry.")
+        except (requests.RequestException, ValueError) as e:
+            st.error(f"Database unavailable ({e.__class__.__name__}).")
+    if drugs_data:
+        df_drugs = pd.DataFrame(drugs_data)
+        cols = [c for c in ["Antibiotic_Name", "Drug_Class", "Molecular_Weight", "LogP", "Cost_Per_Dose_INR"]
+                if c in df_drugs.columns]
+        st.dataframe(df_drugs[cols], width="stretch")
+    elif drugs_data is not None:
+        st.info("No antibiotics returned by the database.")
+    else:
+        st.button("🔄 Retry loading database", key="retry_database")
 
 
 @st.cache_resource
