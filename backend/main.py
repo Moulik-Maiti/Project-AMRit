@@ -30,9 +30,9 @@ from fastapi.responses import JSONResponse
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
+from data_ingestion import SingleIsolateInput, UniversalIngestRouter
 from ml_engine import AMRStackingEngine
 from schemas import SequenceUploadRequest
-from data_ingestion import UniversalIngestRouter, SingleIsolateInput
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("amrit.api")
@@ -145,6 +145,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host=os.environ.get("HOST", "0.0.0.0"),
-        port=int(os.environ.get("PORT", 8000)),
+        port=int(os.environ.get("PORT", "8000")),
         proxy_headers=True,
     )

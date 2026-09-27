@@ -1,13 +1,14 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import numpy as np
 import os
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from torch import nn, optim
+
 
 class GenomicCNN(nn.Module):
     def __init__(self, seq_len=1000, num_classes=1):
-        super(GenomicCNN, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv1d(in_channels=4, out_channels=32, kernel_size=8, stride=1, padding=0)
         self.pool1 = nn.MaxPool1d(kernel_size=4)
         self.conv2 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=8, stride=1, padding=0)

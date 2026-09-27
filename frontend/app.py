@@ -276,7 +276,7 @@ with tab_pipeline:
                     "clinical_rationale": "Clinical Rationale"
                 })
 
-                styled_rec = display_rec.style.set_properties(**{
+                styled_rec = display_rec.style.set_properties(subset=None, **{
                     'background-color': '#022c22',
                     'color': '#6ee7b7',
                     'border-color': '#065f46'
@@ -302,7 +302,7 @@ with tab_pipeline:
                     "reason": "Genomic Rationale"
                 })
 
-                styled_rej = display_rej.style.set_properties(**{
+                styled_rej = display_rej.style.set_properties(subset=None, **{
                     'background-color': '#450a0a',
                     'color': '#fca5a5',
                     'border-color': '#7f1d1d'

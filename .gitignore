@@ -44,3 +44,4 @@ test_output.log
 # Generated at runtime
 amr_knowledge_graph.html
 .streamlit/secrets.toml
+.ruff_cache/

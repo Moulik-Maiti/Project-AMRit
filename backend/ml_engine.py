@@ -1,4 +1,5 @@
 from config import ENSEMBLE_WEIGHTS_PATH, GENOMIC_CNN_WEIGHTS_PATH
+
 """
 AMrit Production ML & Chemistry Engine (Layer 2, 3 & 4)
 ========================================================
@@ -11,15 +12,17 @@ AMrit Production ML & Chemistry Engine (Layer 2, 3 & 4)
 
 import logging
 import os
-import sys
 import pickle
+import sys
 from typing import Any
+
 import numpy as np
 import shap
 import torch
 from dl_genomics import GenomicCNN, sequence_to_tensor
 from rdkit import Chem
-from rdkit.Chem import Descriptors as _Descriptors, rdFingerprintGenerator, rdMolDescriptors
+from rdkit.Chem import Descriptors as _Descriptors
+from rdkit.Chem import rdFingerprintGenerator, rdMolDescriptors
 
 # RDKit registers the descriptor functions (MolWt, TPSA, ...) at import time, so static
 # type checkers can't see them; Any keeps those call sites from being flagged.
@@ -386,7 +389,7 @@ class AMRStackingEngine:
                     "reason": "Intrinsic Resistance" if data["is_intrinsically_resistant"] else "Acquired Genomic Resistance",
                     "resistance_probability": data["resistance_probability"],
                     "predicted_mic_mg_l": data["predicted_mic_mg_l"],
-                    "top_driver": list(data["shap_top_attributions"].keys())[0] if data["shap_top_attributions"] else "Mutation"
+                    "top_driver": next(iter(data["shap_top_attributions"])) if data["shap_top_attributions"] else "Mutation"
                 })
 
         # Rank recommended treatments by dynamic ML efficiency score

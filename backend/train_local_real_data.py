@@ -1,32 +1,33 @@
 import os
-import sys
-import urllib.request
-import tarfile
-import pandas as pd
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import pickle
+import sys
+import tarfile
+import urllib.request
 import warnings
-from rdkit import rdBase
+
+import numpy as np
+import pandas as pd
+import torch
 from Bio import SeqIO
+from rdkit import rdBase
+from torch import nn, optim
 
 rdBase.DisableLog('rdApp.*')  # same function as RDLogger.DisableLog
 warnings.filterwarnings('ignore')
 
-from sklearn.ensemble import HistGradientBoostingClassifier
-import xgboost as xgb
 import lightgbm as lgb
+import xgboost as xgb
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from config import ENSEMBLE_WEIGHTS_PATH
-from dl_genomics import GenomicCNN, sequence_to_tensor
-from data_ingestion import CheminformaticsProcessor
 from chemistry_engine import CheminformaticsMolecularEngine
+from config import ENSEMBLE_WEIGHTS_PATH
+from data_ingestion import CheminformaticsProcessor
+from dl_genomics import GenomicCNN, sequence_to_tensor
+
 
 def download_and_parse_card():
     print("--- 1. DOWNLOADING REAL CARD RESISTANCE DATABASE ---")
@@ -148,7 +149,7 @@ def build_features_and_train_ensemble(patric_df):
         try:
             fp = chem.get_morgan_fingerprint(drug_name)
             physchem = chem.get_physicochemical_descriptors(drug_name)
-        except:
+        except Exception:  # noqa: BLE001 - fall back to neutral features for unparseable drugs
             fp = np.zeros(2048)
             physchem = {"Molecular_Weight": 300, "LogP": 1.5, "TPSA": 100}
             
@@ -173,9 +174,9 @@ def build_features_and_train_ensemble(patric_df):
     le_drug = LabelEncoder()
     le_class = LabelEncoder()
     
-    df["Mutants_Encoded"] = le_mut.fit_transform(df["Mutants"])
-    df["Drug_Encoded"] = le_drug.fit_transform(df["Drug_Name"])
-    df["Class_Encoded"] = le_class.fit_transform(df["Drug_Class"])
+    df["Mutants_Encoded"] = np.asarray(le_mut.fit_transform(df["Mutants"]))
+    df["Drug_Encoded"] = np.asarray(le_drug.fit_transform(df["Drug_Name"]))
+    df["Class_Encoded"] = np.asarray(le_class.fit_transform(df["Drug_Class"]))
     
     feature_cols = ["Mutants_Encoded", "Drug_Encoded", "Class_Encoded", "MW", "LogP", "TPSA"] + [f"FP_{i}" for i in range(10)]
     X = df[feature_cols].values
