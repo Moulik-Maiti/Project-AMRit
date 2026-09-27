@@ -6,8 +6,8 @@ import time
 import urllib.request
 
 BACKEND_HOST = os.environ.get("AMRIT_BACKEND_HOST", "127.0.0.1")
-BACKEND_PORT = int(os.environ.get("AMRIT_BACKEND_PORT", 8000))
-FRONTEND_PORT = int(os.environ.get("AMRIT_FRONTEND_PORT", 8510))
+BACKEND_PORT = int(os.environ.get("AMRIT_BACKEND_PORT", "8000"))
+FRONTEND_PORT = int(os.environ.get("AMRIT_FRONTEND_PORT", "8510"))
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 

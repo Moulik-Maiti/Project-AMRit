@@ -1,25 +1,25 @@
 import os
-import sys
 import pickle
+import sys
+import tarfile
+import urllib.request
 from typing import Any
+
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
+import torch
 import xgboost as xgb
-import lightgbm as lgb
+from Bio import SeqIO
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.ensemble import HistGradientBoostingClassifier
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from Bio import SeqIO
-import urllib.request
-import tarfile
+from torch import nn, optim
 
 # Ensure we can import backend modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.chemistry_engine import CheminformaticsMolecularEngine
-from backend.dl_genomics import sequence_to_tensor, GenomicCNN
+from backend.dl_genomics import GenomicCNN, sequence_to_tensor
 
 ENSEMBLE_WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "amr_ensemble_weights.pkl")
 CNN_WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "genomic_cnn_weights.pth")
@@ -95,8 +95,8 @@ def train_cnn(real_motifs):
 
 def generate_clinical_chem_features(smiles):
     from rdkit import Chem
-    from rdkit.Chem import rdFingerprintGenerator, rdMolDescriptors
     from rdkit.Chem import Descriptors as _Descriptors
+    from rdkit.Chem import rdFingerprintGenerator, rdMolDescriptors
     # RDKit registers descriptor functions at import time; Any hides them from type checkers
     Descriptors: Any = _Descriptors
     

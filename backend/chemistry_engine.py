@@ -1,4 +1,10 @@
-from config import PHARMACOPEIA_PATH, PATHOGEN_ENVELOPE_PHYSICS_PATH, PHARMACOPHORE_CATALOG_PATH, BIOMARKER_ONTOLOGY_PATH
+from config import (
+    BIOMARKER_ONTOLOGY_PATH,
+    PATHOGEN_ENVELOPE_PHYSICS_PATH,
+    PHARMACOPEIA_PATH,
+    PHARMACOPHORE_CATALOG_PATH,
+)
+
 """
 AMrit Chemistry & Molecular Mechanics Engine (Layer 1 & 2)
 ==========================================================
@@ -6,15 +12,16 @@ Cheminformatics-driven target recognition, envelope biophysics,
 pharmacophore SMARTS matching, and resistance gene inactivation.
 """
 
+import json
 import os
 import re
-import json
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any
-
 from rdkit import Chem
-from rdkit.Chem import Descriptors as _Descriptors, rdMolDescriptors
+from rdkit.Chem import Descriptors as _Descriptors
+from rdkit.Chem import rdMolDescriptors
 
 # RDKit registers the descriptor functions (MolWt, TPSA, ...) at import time, so static
 # type checkers can't see them; Any keeps those call sites from being flagged.
@@ -133,7 +140,7 @@ class CheminformaticsMolecularEngine:
                 Chem.SanitizeMol(mol)
                 self._drug_mol_cache[drug_name] = mol
 
-    def get_mol(self, drug_name: str) -> Optional[Chem.Mol]:
+    def get_mol(self, drug_name: str) -> Chem.Mol | None:
         if drug_name in self._drug_mol_cache:
             return self._drug_mol_cache[drug_name]
         row = self.pharmacopeia_df.loc[self.pharmacopeia_df["Antibiotic_Name"].str.lower() == drug_name.lower()]
@@ -146,7 +153,7 @@ class CheminformaticsMolecularEngine:
                 return mol
         return None
 
-    def compute_molecular_descriptors(self, mol: Chem.Mol) -> Dict[str, Any]:
+    def compute_molecular_descriptors(self, mol: Chem.Mol) -> dict[str, Any]:
         """Calculates full 2D/3D physicochemical descriptors dynamically."""
         if mol is None:
             return {}
@@ -175,7 +182,7 @@ class CheminformaticsMolecularEngine:
             "aromatic_ring_count": int(aromatic_rings)
         }
 
-    def identify_pharmacophores(self, mol: Chem.Mol) -> List[str]:
+    def identify_pharmacophores(self, mol: Chem.Mol) -> list[str]:
         """Dynamically identifies all pharmacophoric substructures using SMARTS matching & molecular rules."""
         if mol is None:
             return []
@@ -186,9 +193,8 @@ class CheminformaticsMolecularEngine:
                 detected_keys.append(key)
         
         # Heavy glycopeptide cage rule
-        if Descriptors.MolWt(mol) > 1200.0:
-            if "glycopeptide_core" not in detected_keys:
-                detected_keys.append("glycopeptide_core")
+        if Descriptors.MolWt(mol) > 1200.0 and "glycopeptide_core" not in detected_keys:
+            detected_keys.append("glycopeptide_core")
                 
         return detected_keys
 
@@ -197,7 +203,7 @@ class CheminformaticsMolecularEngine:
         mol: Chem.Mol, 
         drug_name: str, 
         pathogen: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluates biophysical cell envelope permeability, porin size exclusion sieve,
         and intrinsic resistance mechanisms for any pathogen-drug pair.
@@ -269,16 +275,16 @@ class CheminformaticsMolecularEngine:
                 }
 
         # 4. Anti-TB Specific Prodrugs on Non-Mycobacterial Species
-        if not perm_rules.get("mycolic_acid_barrier", False):
-            if "anti_tb_hydrazide_core" in pharmacophores or "anti_tb_ethambutol_core" in pharmacophores:
-                return {
-                    "in_clinical_spectrum": False,
-                    "is_permeable": True,
-                    "is_intrinsically_resistant": False,
-                    "mechanism": "Narrow-spectrum anti-tubercular agent",
-                    "reference": "Clinical Microbiology Spectrum",
-                    "exclusion_reason": "Narrow-spectrum anti-tubercular agent (Requires KatG activation / EmbB target absent in non-mycobacteria)."
-                }
+        if not perm_rules.get("mycolic_acid_barrier", False) and (
+                "anti_tb_hydrazide_core" in pharmacophores or "anti_tb_ethambutol_core" in pharmacophores):
+            return {
+                "in_clinical_spectrum": False,
+                "is_permeable": True,
+                "is_intrinsically_resistant": False,
+                "mechanism": "Narrow-spectrum anti-tubercular agent",
+                "reference": "Clinical Microbiology Spectrum",
+                "exclusion_reason": "Narrow-spectrum anti-tubercular agent (Requires KatG activation / EmbB target absent in non-mycobacteria)."
+            }
 
         # 5. Gram-Positive vs Gram-Negative Specificity
         if env_record.get("gram_envelope_type") == "Gram-positive":
@@ -291,16 +297,15 @@ class CheminformaticsMolecularEngine:
                     "reference": "EUCAST Expert Rules v3.3",
                     "exclusion_reason": "Intrinsic inactivity: Gram-positive peptidoglycan lacks outer membrane Lipid A target."
                 }
-        elif env_record.get("gram_envelope_type") == "Gram-negative":
-            if "oxazolidinone_core" in pharmacophores:
-                return {
-                    "in_clinical_spectrum": False,
-                    "is_permeable": False,
-                    "is_intrinsically_resistant": False,
-                    "mechanism": "Gram-negative intrinsic RND efflux pump extrusion",
-                    "reference": "CLSI M100 Ed. 34",
-                    "exclusion_reason": "Gram-negative intrinsic multidrug efflux pump extrusion (AcrAB-TolC / MexAB-OprM)."
-                }
+        elif env_record.get("gram_envelope_type") == "Gram-negative" and "oxazolidinone_core" in pharmacophores:
+            return {
+                "in_clinical_spectrum": False,
+                "is_permeable": False,
+                "is_intrinsically_resistant": False,
+                "mechanism": "Gram-negative intrinsic RND efflux pump extrusion",
+                "reference": "CLSI M100 Ed. 34",
+                "exclusion_reason": "Gram-negative intrinsic multidrug efflux pump extrusion (AcrAB-TolC / MexAB-OprM)."
+            }
 
         return {
             "in_clinical_spectrum": True,
@@ -311,7 +316,7 @@ class CheminformaticsMolecularEngine:
             "exclusion_reason": None
         }
 
-    def parse_variant_token(self, variant_str: str) -> Dict[str, Any]:
+    def parse_variant_token(self, variant_str: str) -> dict[str, Any]:
         """
         Parses raw genomic variant tokens (e.g. gyrA_S83L, parC_S80I, blaNDM-1, ompK36)
         into exact structured biophysical records and label-encoder compatible fields.
@@ -485,8 +490,8 @@ class CheminformaticsMolecularEngine:
     def evaluate_all_matching_biomarkers(
         self, 
         mol: Chem.Mol, 
-        detected_variants: List[str]
-    ) -> List[Dict[str, Any]]:
+        detected_variants: list[str]
+    ) -> list[dict[str, Any]]:
         """
         Evaluates all detected genomic variants against the small molecule chemical pharmacophores.
         Returns a list of all matching biophysical mutation records.
@@ -518,8 +523,8 @@ class CheminformaticsMolecularEngine:
     def evaluate_biomarker_chemical_inactivation(
         self, 
         mol: Chem.Mol, 
-        detected_variants: List[str]
-    ) -> Tuple[str, str, str, str, str, str]:
+        detected_variants: list[str]
+    ) -> tuple[str, str, str, str, str, str]:
         """
         Evaluates genomic resistance mutations directly against the molecule chemical pharmacophores.
         Returns primary encoded tuple: (Gene_Marker, Mutation_Type, Target_Region, WT_Amino_Acid, Sample_Amino_Acid, CARD_ARO_ID)
@@ -550,11 +555,11 @@ class CheminformaticsMolecularEngine:
         pathogen: str,
         drug_name: str,
         mol: Chem.Mol,
-        all_variants: List[str],
-        matching_variants: List[Dict[str, Any]],
+        all_variants: list[str],
+        matching_variants: list[dict[str, Any]],
         ml_predicted_mic: float,
         ml_prob_resistant: float
-    ) -> Tuple[float, float, str]:
+    ) -> tuple[float, float, str]:
         """
         Calculates multi-mutation permutation epistasis and continuous biophysical fold shifts.
         Ensures each mutation combination and microbe produces dynamically varying, biologically calibrated MICs.

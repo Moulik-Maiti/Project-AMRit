@@ -1,26 +1,28 @@
 import os
-import sys
-import pandas as pd
-import numpy as np
 import pickle
+import sys
 import warnings
+
+import numpy as np
+import pandas as pd
 from rdkit import rdBase
 
 rdBase.DisableLog('rdApp.*')  # same function as RDLogger.DisableLog
 warnings.filterwarnings('ignore')
 
-from sklearn.ensemble import HistGradientBoostingClassifier
-import xgboost as xgb
 import lightgbm as lgb
+import xgboost as xgb
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from config import ENSEMBLE_WEIGHTS_PATH
-from dl_genomics import train_synthetic
-from data_ingestion import GenomicSequenceIngestor, CheminformaticsProcessor
 from chemistry_engine import CheminformaticsMolecularEngine
+from config import ENSEMBLE_WEIGHTS_PATH
+from data_ingestion import CheminformaticsProcessor, GenomicSequenceIngestor
+from dl_genomics import train_synthetic
+
 
 def extract_mutants_and_dna_from_samples():
     print("--- STEP 1: Dynamically Parsing ALL FASTA files for real clinical DNA motifs ---")
@@ -29,7 +31,7 @@ def extract_mutants_and_dna_from_samples():
     dna_motifs_found = set()
     
     for file in os.listdir(samples_dir):
-        if file.endswith(".fasta") or file.endswith(".txt"):
+        if file.endswith((".fasta", ".txt")):
             filepath = os.path.join(samples_dir, file)
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -108,7 +110,7 @@ def generate_synthetic_antibiogram_dataset(mutants, num_samples=3000):
         try:
             fp = chem.get_morgan_fingerprint(smiles)
             physchem = chem.get_physicochemical_descriptors(smiles)
-        except Exception:
+        except Exception:  # noqa: BLE001 - fall back to neutral features for unparseable drugs
             fp = np.zeros(2048)
             physchem = {"Molecular_Weight": 300, "LogP": 1.5, "TPSA": 100}
         

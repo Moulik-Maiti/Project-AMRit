@@ -1,4 +1,9 @@
-from config import ANTIBIOTIC_SMILES_CHEMISTRY_PATH, INDIAN_CLINICAL_ECONOMICS_PATH, PATHOGEN_ENVELOPE_PHYSICS_PATH
+from config import (
+    ANTIBIOTIC_SMILES_CHEMISTRY_PATH,
+    INDIAN_CLINICAL_ECONOMICS_PATH,
+    PATHOGEN_ENVELOPE_PHYSICS_PATH,
+)
+
 """
 AMrit Data Ingestion & Preprocessing Pipeline (Layer 1 - Bioinformatic Edition)
 ==============================================================================
@@ -24,21 +29,23 @@ AMrit Data Ingestion & Preprocessing Pipeline (Layer 1 - Bioinformatic Edition)
 """
 
 import io
-import re
 import os
-from typing import Annotated, Dict, List, Optional, Union, Any
+import re
+from typing import Annotated, Any, ClassVar
+
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 # Bioinformatic imports
 from Bio import SeqIO
+from Bio.Data.CodonTable import TranslationError
 from Bio.Seq import Seq
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 # Cheminformatics imports
-from rdkit import Chem
-from rdkit.Chem import Descriptors as _Descriptors, rdFingerprintGenerator
-from rdkit import DataStructs
+from rdkit import Chem, DataStructs
+from rdkit.Chem import Descriptors as _Descriptors
+from rdkit.Chem import rdFingerprintGenerator
 
 # RDKit registers the descriptor functions (MolWt, TPSA, ...) at import time, so static
 # type checkers can't see them; Any keeps those call sites from being flagged.
@@ -55,7 +62,7 @@ class IntrinsicResistomeEngine:
     _cached_envelope_physics = None
 
     @classmethod
-    def _get_envelope_physics(cls) -> Dict[str, Any]:
+    def _get_envelope_physics(cls) -> dict[str, Any]:
         if cls._cached_envelope_physics is None:
             db_path = str(PATHOGEN_ENVELOPE_PHYSICS_PATH)
             if os.path.exists(db_path):
@@ -67,7 +74,7 @@ class IntrinsicResistomeEngine:
         return cls._cached_envelope_physics
 
     @classmethod
-    def check_intrinsic_resistance(cls, pathogen: str, antibiotic: str) -> Optional[Dict[str, Any]]:
+    def check_intrinsic_resistance(cls, pathogen: str, antibiotic: str) -> dict[str, Any] | None:
         env_db = cls._get_envelope_physics()
         for norm_pathogen, env_data in env_db.items():
             if norm_pathogen.lower() in pathogen.lower():
@@ -84,7 +91,7 @@ class IntrinsicResistomeEngine:
         return None
 
     @classmethod
-    def apply_intrinsic_filter(cls, pathogen: str, susceptibility_results: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    def apply_intrinsic_filter(cls, pathogen: str, susceptibility_results: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
         filtered = susceptibility_results.copy()
         for drug_name, res in filtered.items():
             rule = cls.check_intrinsic_resistance(pathogen, drug_name)
@@ -139,7 +146,7 @@ EPISTATIC_RULES = [
 class MultiGeneVariantAggregator:
     """Aggregates multiple genomic markers, calculates epistasis, and classifies MDR/XDR/PDR."""
 
-    ANTIMICROBIAL_CATEGORIES = {
+    ANTIMICROBIAL_CATEGORIES: ClassVar[dict[str, list[str]]] = {
         "Fluoroquinolones": ["Ciprofloxacin", "Levofloxacin", "Nalidixic Acid"],
         "Carbapenems": ["Meropenem", "Imipenem"],
         "Cephalosporins": ["Ceftriaxone", "Cefotaxime", "Ceftazidime"],
@@ -154,7 +161,7 @@ class MultiGeneVariantAggregator:
     }
 
     @classmethod
-    def analyze_isolate_variants(cls, detected_variants: List[str], pathogen: str) -> Dict[str, Any]:
+    def analyze_isolate_variants(cls, detected_variants: list[str], pathogen: str) -> dict[str, Any]:
         variant_set = set(detected_variants)
         triggered_epistasis = []
         
@@ -196,7 +203,7 @@ class MultiGeneVariantAggregator:
                 resistant_drugs.update(["Vancomycin", "Teicoplanin"])
 
         # Add intrinsic resistance
-        for drug_cat, drug_list in cls.ANTIMICROBIAL_CATEGORIES.items():
+        for drug_list in cls.ANTIMICROBIAL_CATEGORIES.values():
             for drug in drug_list:
                 if IntrinsicResistomeEngine.check_intrinsic_resistance(pathogen, drug):
                     resistant_drugs.add(drug)
@@ -223,8 +230,8 @@ class MultiGeneVariantAggregator:
             "pathogen": pathogen,
             "detected_variants": detected_variants,
             "epistatic_synergies": triggered_epistasis,
-            "predicted_resistant_drugs": sorted(list(resistant_drugs)),
-            "resistant_drug_categories": sorted(list(resistant_categories)),
+            "predicted_resistant_drugs": sorted(resistant_drugs),
+            "resistant_drug_categories": sorted(resistant_categories),
             "amr_epidemiological_classification": classification,
             "magiorakos_criteria_score": f"{num_res_cats}/{total_categories} antimicrobial classes non-susceptible"
         }
@@ -238,7 +245,7 @@ class FASTQHeteroresistanceEngine:
     """Builds base pileup across FASTQ reads and calculates Variant Allele Frequency (VAF %)."""
 
     @classmethod
-    def compute_codon_vaf(cls, fastq_reads: List[str], target_pocket: str = "gyrA_QRDR") -> Dict[str, Any]:
+    def compute_codon_vaf(cls, fastq_reads: list[str], target_pocket: str = "gyrA_QRDR") -> dict[str, Any]:
         if not fastq_reads:
             return {"error": "No FASTQ reads provided"}
         
@@ -269,7 +276,7 @@ class FASTQHeteroresistanceEngine:
             vaf_pct = (count / total_depth) * 100.0
             try:
                 aa = str(Seq(codon).translate())
-            except Exception:
+            except TranslationError:
                 aa = "?"
             
             # Clinical interpretation
@@ -344,7 +351,7 @@ POCKET_SIGNATURES = {
 class GenomicSequenceIngestor:
     """Dynamic Multi-FASTA & FASTQ QC and Resistance Pocket Scanner."""
 
-    IUPAC_DNA_CHARS = set("ACGTNacgtn")
+    IUPAC_DNA_CHARS: ClassVar[frozenset[str]] = frozenset("ACGTNacgtn")
 
     @classmethod
     def validate_dna(cls, seq_str: str) -> bool:
@@ -360,7 +367,7 @@ class GenomicSequenceIngestor:
         return round((g_count + c_count) / total * 100.0, 2) if total > 0 else 0.0
 
     @classmethod
-    def parse_fasta(cls, fasta_content_or_path: Union[str, bytes]) -> List[Dict[str, Any]]:
+    def parse_fasta(cls, fasta_content_or_path: str | bytes) -> list[dict[str, Any]]:
         # Content is always treated as data, never as a filesystem path: this method
         # receives untrusted API input, and path probing would allow local file reads.
         if isinstance(fasta_content_or_path, str):
@@ -389,7 +396,7 @@ class GenomicSequenceIngestor:
         return results
 
     @classmethod
-    def parse_fastq(cls, fastq_content_or_path: Union[str, bytes], min_qscore: float = 20.0) -> Dict[str, Any]:
+    def parse_fastq(cls, fastq_content_or_path: str | bytes, min_qscore: float = 20.0) -> dict[str, Any]:
         # Content is always treated as data, never as a filesystem path: this method
         # receives untrusted API input, and path probing would allow local file reads.
         if isinstance(fastq_content_or_path, str):
@@ -429,7 +436,7 @@ class GenomicSequenceIngestor:
         }
 
     @classmethod
-    def extract_resistance_pockets(cls, target_sequence: str) -> Dict[str, Dict[str, Any]]:
+    def extract_resistance_pockets(cls, target_sequence: str) -> dict[str, dict[str, Any]]:
         found_pockets = {}
         seq_len = len(target_sequence)
         
@@ -455,7 +462,7 @@ class GenomicSequenceIngestor:
                     
                     try:
                         trans = str(Seq(subseq).translate())
-                    except Exception:
+                    except TranslationError:
                         continue
                     
                     m = re.search(pattern, trans)
@@ -492,13 +499,13 @@ class GenomicSequenceIngestor:
 class CheminformaticsProcessor:
     """Standardizes SMILES and computes 2048-bit Morgan Fingerprints & descriptors."""
 
-    def __init__(self, chemistry_db_path: Optional[str] = None):
+    def __init__(self, chemistry_db_path: str | None = None):
         self.db = {}
         if chemistry_db_path and os.path.exists(chemistry_db_path):
             df = pd.read_csv(chemistry_db_path)
             self.db = df.set_index("Antibiotic_Name").to_dict(orient="index")
 
-    def get_mol(self, smiles_or_drug_name: str) -> Optional[Chem.Mol]:
+    def get_mol(self, smiles_or_drug_name: str) -> Chem.Mol | None:
         if smiles_or_drug_name in self.db:
             smiles = self.db[smiles_or_drug_name]["Canonical_SMILES"]
         else:
@@ -506,7 +513,7 @@ class CheminformaticsProcessor:
         
         try:
             return Chem.MolFromSmiles(smiles)
-        except Exception:
+        except TypeError:  # RDKit raises ArgumentError (a TypeError) for non-string input
             return None
 
     def get_morgan_fingerprint(self, smiles_or_drug_name: str, n_bits: int = 2048) -> np.ndarray:
@@ -519,7 +526,7 @@ class CheminformaticsProcessor:
         DataStructs.ConvertToNumpyArray(fp, arr)
         return arr
 
-    def get_physicochemical_descriptors(self, smiles_or_drug_name: str) -> Dict[str, float]:
+    def get_physicochemical_descriptors(self, smiles_or_drug_name: str) -> dict[str, float]:
         mol = self.get_mol(smiles_or_drug_name)
         if mol is None:
             return {
@@ -571,17 +578,17 @@ MAX_SHORT_TEXT_CHARS = 128
 
 
 class SingleIsolateInput(BaseModel):
-    sample_id: Optional[str] = Field("ISO_PATIENT", max_length=MAX_SHORT_TEXT_CHARS)
-    raw_sequence: Optional[str] = Field(None, max_length=MAX_RAW_SEQUENCE_CHARS)
+    sample_id: str | None = Field("ISO_PATIENT", max_length=MAX_SHORT_TEXT_CHARS)
+    raw_sequence: str | None = Field(None, max_length=MAX_RAW_SEQUENCE_CHARS)
     pathogen_species: str = Field(..., max_length=MAX_SHORT_TEXT_CHARS, description="Target bacterial pathogen")
-    detected_variants: List[Annotated[str, StringConstraints(max_length=MAX_VARIANT_TOKEN_CHARS)]] = Field(
+    detected_variants: list[Annotated[str, StringConstraints(max_length=MAX_VARIANT_TOKEN_CHARS)]] = Field(
         default_factory=list, max_length=MAX_VARIANTS,
         description="List of detected mutations/genes (e.g. gyrA_S83L, blaNDM-1)")
-    tested_antibiotic: Optional[str] = Field("Ciprofloxacin", max_length=MAX_SHORT_TEXT_CHARS)
-    mic_value_mg_l: Optional[float] = Field(None, ge=0)
-    isolate_source: Optional[str] = Field("clinical", max_length=MAX_SHORT_TEXT_CHARS)
-    geographic_region: Optional[str] = Field("National Average", max_length=MAX_SHORT_TEXT_CHARS)
-    collection_year: Optional[int] = Field(2024, ge=1900, le=2100)
+    tested_antibiotic: str | None = Field("Ciprofloxacin", max_length=MAX_SHORT_TEXT_CHARS)
+    mic_value_mg_l: float | None = Field(None, ge=0)
+    isolate_source: str | None = Field("clinical", max_length=MAX_SHORT_TEXT_CHARS)
+    geographic_region: str | None = Field("National Average", max_length=MAX_SHORT_TEXT_CHARS)
+    collection_year: int | None = Field(2024, ge=1900, le=2100)
 
     @field_validator("pathogen_species")
     @classmethod
@@ -606,7 +613,7 @@ class UniversalIngestRouter:
             df_econ = pd.read_csv(self.econ_path)
             self.econ_db = df_econ.set_index("Antibiotic_Name").to_dict(orient="index")
 
-    def ingest_payload(self, raw_input: Union[str, bytes, dict, pd.DataFrame]) -> Dict[str, Any]:
+    def ingest_payload(self, raw_input: str | bytes | dict | pd.DataFrame) -> dict[str, Any]:
         if isinstance(raw_input, dict):
             return self._handle_structured_dict(raw_input)
         
@@ -632,7 +639,7 @@ class UniversalIngestRouter:
             try:
                 df = pd.read_csv(io.StringIO(text_stripped))
                 return self._handle_dataframe(df)
-            except Exception:
+            except ValueError:  # pandas ParserError / EmptyDataError: not a CSV, fall through
                 pass
 
         if GenomicSequenceIngestor.validate_dna(text_stripped):
@@ -651,7 +658,7 @@ class UniversalIngestRouter:
             "message": "Unrecognized input format. Supported: FASTA, FASTQ, CSV Antibiogram, or JSON Isolate payload."
         }
 
-    def _handle_structured_dict(self, data: dict) -> Dict[str, Any]:
+    def _handle_structured_dict(self, data: dict) -> dict[str, Any]:
         validated = SingleIsolateInput(**data)
         pathogen = validated.pathogen_species
         # tested_antibiotic is Optional, so an explicit null must not reach .lower() below
@@ -689,7 +696,7 @@ class UniversalIngestRouter:
             "pharmacoeconomics": econ_info
         }
 
-    def _handle_dataframe(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def _handle_dataframe(self, df: pd.DataFrame) -> dict[str, Any]:
         total_rows = len(df)
         cols = df.columns.tolist()
         return {

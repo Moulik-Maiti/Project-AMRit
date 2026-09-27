@@ -1,16 +1,18 @@
 import os
 import sys
 import time
-import torch
-import numpy as np
-from sklearn.metrics import accuracy_score, roc_auc_score
 import warnings
+
+import numpy as np
+import torch
+from sklearn.metrics import accuracy_score, roc_auc_score
 
 warnings.filterwarnings('ignore')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from dl_genomics import GenomicCNN, sequence_to_tensor
 from config import ENSEMBLE_WEIGHTS_PATH
+from dl_genomics import GenomicCNN, sequence_to_tensor
+
 
 def evaluate_cnn():
     print("--- EVALUATING 1D-CNN GENOMIC FEATURE EXTRACTOR ---")
@@ -67,8 +69,8 @@ def evaluate_ensemble():
         print("Ensemble weights not found!")
         return None
 
-    from ml_engine import AMRStackingEngine
     from data_ingestion import VALID_PATHOGENS
+    from ml_engine import AMRStackingEngine
 
     engine = AMRStackingEngine()
     variant_sets = [[], ["gyrA_S83L"], ["blaNDM-1", "ompK36_porin_loss"], ["rpoB_S450L", "katG_S315T"], ["mecA", "vanA"]]
@@ -79,7 +81,7 @@ def evaluate_ensemble():
             start = time.perf_counter()
             try:
                 result = engine.predict_isolate({"pathogen_species": pathogen, "detected_variants": variants})
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - report every failure and keep checking the rest
                 failures += 1
                 print(f"FAILED {pathogen} {variants}: {e.__class__.__name__}: {e}")
                 continue
