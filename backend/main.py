@@ -79,7 +79,8 @@ ml_engine = AMRStackingEngine()
 ingest_router = UniversalIngestRouter()
 
 
-@app.get("/")
+# HEAD is accepted so load-balancer / uptime probes that send HEAD get 200, not 405
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
     return {
         "status": "online",
@@ -88,7 +89,7 @@ def root():
     }
 
 
-@app.get("/api/v1/health")
+@app.api_route("/api/v1/health", methods=["GET", "HEAD"])
 def health_check():
     return {
         "status": "healthy" if ml_engine.is_loaded else "degraded",

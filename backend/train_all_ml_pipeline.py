@@ -2,22 +2,18 @@ import os
 import sys
 import pandas as pd
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import pickle
 import warnings
-from rdkit import RDLogger
+from rdkit import rdBase
 
-RDLogger.DisableLog('rdApp.*')
+rdBase.DisableLog('rdApp.*')  # same function as RDLogger.DisableLog
 warnings.filterwarnings('ignore')
 
-from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
+from sklearn.ensemble import HistGradientBoostingClassifier
 import xgboost as xgb
 import lightgbm as lgb
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.decomposition import TruncatedSVD
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -35,14 +31,15 @@ def extract_mutants_and_dna_from_samples():
     for file in os.listdir(samples_dir):
         if file.endswith(".fasta") or file.endswith(".txt"):
             filepath = os.path.join(samples_dir, file)
-            with open(filepath, "r") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
             pockets = GenomicSequenceIngestor.extract_resistance_pockets(content)
-            for p in pockets:
-                variants_found.add(p["putative_marker"])
+            # extract_resistance_pockets returns {pocket_name: pocket_info}
+            for pocket_name, pocket in pockets.items():
+                variants_found.add(pocket_name)
                 # Extract the literal DNA string from the pocket
-                if "extracted_pocket_seq" in p and p["extracted_pocket_seq"]:
-                    dna_motifs_found.add(p["extracted_pocket_seq"])
+                if pocket.get("extracted_pocket_seq"):
+                    dna_motifs_found.add(pocket["extracted_pocket_seq"])
                     
             print(f"File {file}: Found {len(pockets)} resistance pockets. DNA logic extracted.")
     
@@ -166,9 +163,9 @@ def train_stacking_ensemble(df):
     tab_clf.fit(X_scaled, y)
     
     print("Training Level-1 Logistic Stacking Meta-Learner...")
-    p1 = xgb_clf.predict_proba(X_scaled)[:, 1]
-    p2 = lgb_clf.predict_proba(X_scaled)[:, 1]
-    p3 = tab_clf.predict_proba(X_scaled)[:, 1]
+    p1 = np.asarray(xgb_clf.predict_proba(X_scaled))[:, 1]
+    p2 = np.asarray(lgb_clf.predict_proba(X_scaled))[:, 1]
+    p3 = np.asarray(tab_clf.predict_proba(X_scaled))[:, 1]
     
     X_meta = np.column_stack((p1, p2, p3))
     meta_clf = LogisticRegression()

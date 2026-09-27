@@ -1,3 +1,4 @@
+import io
 import os
 import subprocess
 import sys
@@ -37,18 +38,27 @@ def stop(*processes):
 
 
 def main():
+    # Flush each status line immediately, even when output is piped to a log file
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(line_buffering=True)
+
+    # Child processes log via stdout; force UTF-8 so non-ASCII text never crashes
+    # them when output is redirected or the console uses a legacy code page.
+    child_env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
+
     print("Starting SIH-26 AMrit Application...")
 
     print(f"-> Starting FastAPI Backend on port {BACKEND_PORT}...")
     backend_process = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", BACKEND_HOST, "--port", str(BACKEND_PORT)],
         cwd=PROJECT_DIR,
+        env=child_env,
     )
 
     backend_url = f"http://127.0.0.1:{BACKEND_PORT}"
     print("-> Waiting for models to load...")
     if not wait_for_backend(f"{backend_url}/api/v1/health", backend_process):
-        print("❌ Backend failed to start. See the log output above.")
+        print("ERROR: Backend failed to start. See the log output above.")
         stop(backend_process)
         sys.exit(1)
 
@@ -57,13 +67,13 @@ def main():
         [sys.executable, "-m", "streamlit", "run", "frontend/app.py",
          "--server.port", str(FRONTEND_PORT), "--server.headless", "true"],
         cwd=PROJECT_DIR,
-        env={**os.environ, "AMRIT_API_URL": backend_url},
+        env={**child_env, "AMRIT_API_URL": backend_url},
     )
 
     try:
-        print("\n✅ Application is running!")
-        print(f"🌍 Frontend: http://localhost:{FRONTEND_PORT}")
-        print(f"⚙️  Backend API: {backend_url}/docs")
+        print("\nApplication is running!")
+        print(f"Frontend:     http://localhost:{FRONTEND_PORT}")
+        print(f"Backend API:  {backend_url}/docs")
         print("\nPress Ctrl+C to stop both servers.")
 
         while backend_process.poll() is None and frontend_process.poll() is None:

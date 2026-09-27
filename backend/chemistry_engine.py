@@ -14,8 +14,11 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 
 from rdkit import Chem
-from rdkit.Chem import Descriptors, AllChem, rdMolDescriptors
-from rdkit import DataStructs
+from rdkit.Chem import Descriptors as _Descriptors, rdMolDescriptors
+
+# RDKit registers the descriptor functions (MolWt, TPSA, ...) at import time, so static
+# type checkers can't see them; Any keeps those call sites from being flagged.
+Descriptors: Any = _Descriptors
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -101,12 +104,12 @@ class CheminformaticsMolecularEngine:
         
         env_path = str(PATHOGEN_ENVELOPE_PHYSICS_PATH)
         if os.path.exists(env_path):
-            with open(env_path, "r") as f:
+            with open(env_path, "r", encoding="utf-8") as f:
                 self.envelope_physics = json.load(f)
 
         smarts_path = str(PHARMACOPHORE_CATALOG_PATH)
         if os.path.exists(smarts_path):
-            with open(smarts_path, "r") as f:
+            with open(smarts_path, "r", encoding="utf-8") as f:
                 self.pharmacophore_catalog = json.load(f)
             # Compile SMARTS patterns
             for key, pdata in self.pharmacophore_catalog.items():
@@ -118,7 +121,7 @@ class CheminformaticsMolecularEngine:
 
         bio_path = str(BIOMARKER_ONTOLOGY_PATH)
         if os.path.exists(bio_path):
-            with open(bio_path, "r") as f:
+            with open(bio_path, "r", encoding="utf-8") as f:
                 self.biomarker_ontology = json.load(f)
 
         # Pre-cache RDKit Mols for pharmacopeia
@@ -133,7 +136,7 @@ class CheminformaticsMolecularEngine:
     def get_mol(self, drug_name: str) -> Optional[Chem.Mol]:
         if drug_name in self._drug_mol_cache:
             return self._drug_mol_cache[drug_name]
-        row = self.pharmacopeia_df[self.pharmacopeia_df["Antibiotic_Name"].str.lower() == drug_name.lower()]
+        row = self.pharmacopeia_df.loc[self.pharmacopeia_df["Antibiotic_Name"].str.lower() == drug_name.lower()]
         if not row.empty:
             smi = str(row["Canonical_SMILES"].iloc[0]).strip()
             mol = Chem.MolFromSmiles(smi)
@@ -566,10 +569,6 @@ class CheminformaticsMolecularEngine:
 
         # 2. Extract matching genes and mutations
         matching_genes = [m["gene_marker"].lower() for m in matching_variants]
-        matching_regions = [m["target_region"] for m in matching_variants]
-        
-        max_single_potency = max(m.get("potency_multiplier", 8.0) for m in matching_variants)
-        
         synergy_mult = 1.0
         synergy_desc = []
 

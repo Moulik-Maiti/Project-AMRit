@@ -265,7 +265,7 @@ with tab_pipeline:
                 rec_df["Breakpoint"] = rec_df["eucast_breakpoint_mg_l"].apply(lambda x: f"≤ {x} mg/L")
                 rec_df["Cost (INR)"] = rec_df["cost_per_dose_inr"].apply(lambda x: f"₹{float(x):,.0f}")
 
-                display_rec = rec_df[[
+                display_rec = rec_df.loc[:, [
                     "drug", "drug_class", "administration_route", "Clinical Efficacy Score",
                     "Predicted MIC", "Breakpoint", "who_aware_category", "Cost (INR)", "clinical_rationale"
                 ]].rename(columns={
@@ -294,7 +294,7 @@ with tab_pipeline:
                     lambda c: chemistry_logic_for(c, final_mutations))
                 rej_df["Predicted MIC"] = rej_df["predicted_mic_mg_l"].apply(lambda x: f"{round(float(x), 2)} mg/L")
 
-                display_rej = rej_df[[
+                display_rej = rej_df.loc[:, [
                     "drug", "drug_class", "Predicted MIC", "reason", "Chemistry Logic Engine"
                 ]].rename(columns={
                     "drug": "Drug",
@@ -334,7 +334,9 @@ with tab_database:
 
 @st.cache_resource
 def build_knowledge_graph_html() -> str:
-    net = Network(height="520px", width="100%", bgcolor="#0b1329", font_color="white", cdn_resources="remote")
+    # pyvis documents font_color as str; its signature default (False) makes checkers infer bool
+    net = Network(height="520px", width="100%", bgcolor="#0b1329", font_color="white",  # pyright: ignore[reportArgumentType]
+                  cdn_resources="remote")
     pathogens = ["E. coli", "K. pneumoniae", "P. aeruginosa", "S. aureus", "A. baumannii", "M. tuberculosis", "N. gonorrhoeae"]
     for p in pathogens:
         net.add_node(p, label=p, color="#22c55e", size=22)

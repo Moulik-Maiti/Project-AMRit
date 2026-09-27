@@ -1,0 +1,9 @@
+{
+  "include": ["run.py", "backend", "frontend"],
+  "exclude": ["**/__pycache__", ".venv"],
+  "extraPaths": ["backend"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard"
+}
