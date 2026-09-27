@@ -26,7 +26,7 @@ AMrit Data Ingestion & Preprocessing Pipeline (Layer 1 - Bioinformatic Edition)
 import io
 import re
 import os
-from typing import Annotated, Dict, List, Optional, Union, Tuple, Any, Set
+from typing import Annotated, Dict, List, Optional, Union, Any
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field, StringConstraints, field_validator
@@ -37,8 +37,12 @@ from Bio.Seq import Seq
 
 # Cheminformatics imports
 from rdkit import Chem
-from rdkit.Chem import Descriptors, AllChem
+from rdkit.Chem import Descriptors as _Descriptors, rdFingerprintGenerator
 from rdkit import DataStructs
+
+# RDKit registers the descriptor functions (MolWt, TPSA, ...) at import time, so static
+# type checkers can't see them; Any keeps those call sites from being flagged.
+Descriptors: Any = _Descriptors
 
 
 # =====================================================================
@@ -53,18 +57,17 @@ class IntrinsicResistomeEngine:
     @classmethod
     def _get_envelope_physics(cls) -> Dict[str, Any]:
         if cls._cached_envelope_physics is None:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
             db_path = str(PATHOGEN_ENVELOPE_PHYSICS_PATH)
             if os.path.exists(db_path):
                 import json
-                with open(db_path, "r") as f:
+                with open(db_path, "r", encoding="utf-8") as f:
                     cls._cached_envelope_physics = json.load(f)
             else:
                 cls._cached_envelope_physics = {}
         return cls._cached_envelope_physics
 
     @classmethod
-    def check_intrinsic_resistance(cls, pathogen: str, antibiotic: str) -> Optional[Dict[str, str]]:
+    def check_intrinsic_resistance(cls, pathogen: str, antibiotic: str) -> Optional[Dict[str, Any]]:
         env_db = cls._get_envelope_physics()
         for norm_pathogen, env_data in env_db.items():
             if norm_pathogen.lower() in pathogen.lower():
@@ -511,7 +514,7 @@ class CheminformaticsProcessor:
         if mol is None:
             return np.zeros(n_bits, dtype=np.float32)
         
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=n_bits)
+        fp = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=n_bits).GetFingerprint(mol)
         arr = np.zeros(n_bits, dtype=np.float32)
         DataStructs.ConvertToNumpyArray(fp, arr)
         return arr
@@ -540,8 +543,9 @@ class CheminformaticsProcessor:
         if mol1 is None or mol2 is None:
             return 0.0
         
-        fp1 = AllChem.GetMorganFingerprintAsBitVect(mol1, 2, nBits=2048)
-        fp2 = AllChem.GetMorganFingerprintAsBitVect(mol2, 2, nBits=2048)
+        generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+        fp1 = generator.GetFingerprint(mol1)
+        fp2 = generator.GetFingerprint(mol2)
         return float(DataStructs.TanimotoSimilarity(fp1, fp2))
 
 
@@ -650,7 +654,8 @@ class UniversalIngestRouter:
     def _handle_structured_dict(self, data: dict) -> Dict[str, Any]:
         validated = SingleIsolateInput(**data)
         pathogen = validated.pathogen_species
-        drug = validated.tested_antibiotic
+        # tested_antibiotic is Optional, so an explicit null must not reach .lower() below
+        drug = validated.tested_antibiotic or "Ciprofloxacin"
         variants = validated.detected_variants
         
         # 1. Multi-Gene Epistasis Analysis

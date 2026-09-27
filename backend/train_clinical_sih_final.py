@@ -1,6 +1,7 @@
 import os
 import sys
 import pickle
+from typing import Any
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -94,8 +95,10 @@ def train_cnn(real_motifs):
 
 def generate_clinical_chem_features(smiles):
     from rdkit import Chem
-    from rdkit.Chem import Descriptors, AllChem
-    from rdkit.Chem import MACCSkeys
+    from rdkit.Chem import rdFingerprintGenerator, rdMolDescriptors
+    from rdkit.Chem import Descriptors as _Descriptors
+    # RDKit registers descriptor functions at import time; Any hides them from type checkers
+    Descriptors: Any = _Descriptors
     
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
@@ -116,10 +119,10 @@ def generate_clinical_chem_features(smiles):
                       float(rotb), float(rings), float(aromatic_rings), 
                       float(fraction_csp3), float(heavy_atoms)]
 
-    morgan_fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=256)
+    morgan_fp = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=256).GetFingerprint(mol)
     morgan_features = [float(bit) for bit in morgan_fp]
 
-    maccs_fp = MACCSkeys.GenMACCSKeys(mol)
+    maccs_fp = rdMolDescriptors.GetMACCSKeysFingerprint(mol)
     maccs_features = [float(bit) for bit in maccs_fp]
     
     return admet_features + morgan_features + maccs_features
@@ -168,8 +171,6 @@ def train_ml_ensemble(df, chem_engine):
     df["Drug_Encoded"] = le_drug.fit_transform(df["Tested_Antibiotic"])
     df["Class_Encoded"] = le_class.fit_transform(df["Antibiotic_Class"])
     
-    cat_cols = ["Mutants_Encoded", "Drug_Encoded", "Class_Encoded"]
-    
     # Generate 433-dim chemical features for all rows
     print("Extracting MACCS Keys, 256-bit Morgan FPs, and Lipinski ADMET...")
     X_list = []
@@ -178,7 +179,6 @@ def train_ml_ensemble(df, chem_engine):
         cat_vec = [row["Mutants_Encoded"], row["Drug_Encoded"], row["Class_Encoded"]]
         mol = chem_engine.get_mol(row["Tested_Antibiotic"])
         if mol:
-            from rdkit import Chem
             smiles = Chem.MolToSmiles(mol)
             chem_features = generate_clinical_chem_features(smiles)
         else:
@@ -208,9 +208,9 @@ def train_ml_ensemble(df, chem_engine):
     tab_clf.fit(X_scaled, y)
     
     print("Training Level-1 Meta-Learner (Logistic Regression Stack)...")
-    p1 = xgb_clf.predict_proba(X_scaled)[:, 1]
-    p2 = lgb_clf.predict_proba(X_scaled)[:, 1]
-    p3 = tab_clf.predict_proba(X_scaled)[:, 1]
+    p1 = np.asarray(xgb_clf.predict_proba(X_scaled))[:, 1]
+    p2 = np.asarray(lgb_clf.predict_proba(X_scaled))[:, 1]
+    p3 = np.asarray(tab_clf.predict_proba(X_scaled))[:, 1]
     X_meta = np.column_stack((p1, p2, p3))
     meta_clf = LogisticRegression()
     meta_clf.fit(X_meta, y)

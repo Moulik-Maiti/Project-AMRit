@@ -9,17 +9,25 @@ AMrit Production ML & Chemistry Engine (Layer 2, 3 & 4)
 - Explainability: TreeSHAP Feature Attributions
 """
 
+import logging
 import os
 import sys
 import pickle
+from typing import Any
 import numpy as np
-import pandas as pd
 import shap
 import torch
 from dl_genomics import GenomicCNN, sequence_to_tensor
 from rdkit import Chem
-from rdkit.Chem import Descriptors, AllChem
-from rdkit import DataStructs
+from rdkit.Chem import Descriptors as _Descriptors, rdFingerprintGenerator, rdMolDescriptors
+
+# RDKit registers the descriptor functions (MolWt, TPSA, ...) at import time, so static
+# type checkers can't see them; Any keeps those call sites from being flagged.
+Descriptors: Any = _Descriptors
+
+# Same bits as the legacy AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=256) the
+# models were trained on, without its per-call deprecation warning.
+_MORGAN_256 = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=256)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -27,7 +35,9 @@ WEIGHTS_PATH = str(ENSEMBLE_WEIGHTS_PATH)
 
 sys.path.append(BASE_DIR)
 from chemistry_engine import CheminformaticsMolecularEngine
-from data_ingestion import MultiGeneVariantAggregator, SingleIsolateInput
+from data_ingestion import MultiGeneVariantAggregator
+
+logger = logging.getLogger("amrit.ml_engine")
 
 def calculate_dynamic_efficacy_score(
     predicted_mic: float,
@@ -78,9 +88,6 @@ class AMRStackingEngine:
 
 
     def generate_clinical_chem_features(self, smiles):
-        from rdkit import Chem
-        from rdkit.Chem import Descriptors, AllChem
-        from rdkit.Chem import MACCSkeys
         
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
@@ -101,10 +108,10 @@ class AMRStackingEngine:
                           float(rotb), float(rings), float(aromatic_rings), 
                           float(fraction_csp3), float(heavy_atoms)]
 
-        morgan_fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=256)
+        morgan_fp = _MORGAN_256.GetFingerprint(mol)
         morgan_features = [float(bit) for bit in morgan_fp]
 
-        maccs_fp = MACCSkeys.GenMACCSKeys(mol)
+        maccs_fp = rdMolDescriptors.GetMACCSKeysFingerprint(mol)  # same function as MACCSkeys.GenMACCSKeys
         maccs_features = [float(bit) for bit in maccs_fp]
         
         return admet_features + morgan_features + maccs_features
@@ -138,13 +145,13 @@ class AMRStackingEngine:
             self.feature_names = self.bundle["feature_names"]
             self.explainer = shap.TreeExplainer(self.xgb)
             self.is_loaded = True
-            print("✅ Loaded Stacking Ensemble weights successfully.")
+            logger.info("Loaded stacking ensemble weights from %s", WEIGHTS_PATH)
         else:
-            print("⚠️ Model weights not found. Run backend/train_all_ml_pipeline.py first.")
+            logger.warning("Model weights not found at %s. Run backend/train_all_ml_pipeline.py first.", WEIGHTS_PATH)
 
     def load_genomic_cnn(self):
         if not GENOMIC_CNN_WEIGHTS_PATH.exists():
-            print("⚠️ Genomic CNN weights not found; raw-sequence scoring disabled.")
+            logger.warning("Genomic CNN weights not found; raw-sequence scoring disabled.")
             return
         try:
             model = GenomicCNN(seq_len=1000)
@@ -153,8 +160,8 @@ class AMRStackingEngine:
             model.load_state_dict(state)
             model.eval()
             self.genomic_cnn = model
-        except Exception as e:
-            print(f"⚠️ Failed to load Genomic CNN weights: {e}")
+        except Exception:
+            logger.exception("Failed to load Genomic CNN weights")
 
     def _encode_single_sample(self, sample: dict) -> np.ndarray:
         cat_vec = []
@@ -170,7 +177,6 @@ class AMRStackingEngine:
         drug = sample.get("Tested_Antibiotic", "Ciprofloxacin")
         mol = self.chem_engine.get_mol(drug)
         if mol is not None:
-            from rdkit import Chem
             smiles = Chem.MolToSmiles(mol)
             chem_features = self.generate_clinical_chem_features(smiles)
         else:
@@ -210,7 +216,7 @@ class AMRStackingEngine:
 
         predictions = {}
         for drug in available_drugs:
-            econ_row = self.pharmacopeia_df[self.pharmacopeia_df["Antibiotic_Name"] == drug]
+            econ_row = self.pharmacopeia_df.loc[self.pharmacopeia_df["Antibiotic_Name"] == drug]
             cost = float(econ_row["Cost_Per_Dose_INR"].iloc[0]) if not econ_row.empty else 100.0
             bioavail = float(econ_row["Bioavailability_Percent"].iloc[0]) if not econ_row.empty else 50.0
             route = str(econ_row["Administration_Route"].iloc[0]) if not econ_row.empty else "Oral / IV"
@@ -284,6 +290,7 @@ class AMRStackingEngine:
                 pred_mic_mg_l = max(pred_mic_mg_l, 64.0)
 
             # TreeSHAP local attribution for this drug
+            assert self.explainer is not None  # set together with is_loaded, checked above
             shap_values = self.explainer.shap_values(x_vec)
             top_features_idx = np.argsort(-np.abs(shap_values[0]))[:5]
             shap_attributions = {

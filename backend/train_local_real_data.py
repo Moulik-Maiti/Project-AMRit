@@ -9,13 +9,13 @@ import torch.nn as nn
 import torch.optim as optim
 import pickle
 import warnings
-from rdkit import RDLogger
+from rdkit import rdBase
 from Bio import SeqIO
 
-RDLogger.DisableLog('rdApp.*')
+rdBase.DisableLog('rdApp.*')  # same function as RDLogger.DisableLog
 warnings.filterwarnings('ignore')
 
-from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
+from sklearn.ensemble import HistGradientBoostingClassifier
 import xgboost as xgb
 import lightgbm as lgb
 from sklearn.linear_model import LogisticRegression
@@ -68,7 +68,6 @@ def download_and_parse_patric(real_motifs):
     for _ in range(10000):
         drug_row = df_drugs.sample(1).iloc[0]
         drug_name = drug_row["Antibiotic_Name"]
-        drug_class = drug_row["Drug_Class"]
         
         sample_muts = np.random.choice(real_motifs, np.random.randint(1, 4), replace=False)
         is_resistant = 1 if np.random.rand() > 0.4 else 0
@@ -132,13 +131,12 @@ def train_cnn_locally(real_motifs):
         
     save_path = os.path.join(os.path.dirname(__file__), "..", "models", "genomic_cnn_weights.pth")
     torch.save(model.state_dict(), save_path)
-    print(f"CNN Weights strictly aligned to CARD genes and saved!")
+    print("CNN Weights strictly aligned to CARD genes and saved!")
 
 def build_features_and_train_ensemble(patric_df):
     print("--- 4. MAPPING RDKIT CHEMISTRY & TRAINING ENSEMBLE ---")
     
     chem = CheminformaticsProcessor()
-    chem_engine = CheminformaticsMolecularEngine()
     
     df_train = patric_df.sample(10000)
     data = []
@@ -181,8 +179,8 @@ def build_features_and_train_ensemble(patric_df):
     
     feature_cols = ["Mutants_Encoded", "Drug_Encoded", "Class_Encoded", "MW", "LogP", "TPSA"] + [f"FP_{i}" for i in range(10)]
     X = df[feature_cols].values
-    y = df["Target_Phenotype"].values
-    y_mic = np.log2(df["MIC_Value"].values + 1e-5)
+    y = df["Target_Phenotype"].to_numpy()
+    y_mic = np.log2(df["MIC_Value"].to_numpy(dtype=float) + 1e-5)
     
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
@@ -200,9 +198,9 @@ def build_features_and_train_ensemble(patric_df):
     tab_clf.fit(X_scaled, y)
     
     print("Training Level-1 Meta-Learner...")
-    p1 = xgb_clf.predict_proba(X_scaled)[:, 1]
-    p2 = lgb_clf.predict_proba(X_scaled)[:, 1]
-    p3 = tab_clf.predict_proba(X_scaled)[:, 1]
+    p1 = np.asarray(xgb_clf.predict_proba(X_scaled))[:, 1]
+    p2 = np.asarray(lgb_clf.predict_proba(X_scaled))[:, 1]
+    p3 = np.asarray(tab_clf.predict_proba(X_scaled))[:, 1]
     X_meta = np.column_stack((p1, p2, p3))
     meta_clf = LogisticRegression()
     meta_clf.fit(X_meta, y)
@@ -230,7 +228,7 @@ def build_features_and_train_ensemble(patric_df):
     
     with open(ENSEMBLE_WEIGHTS_PATH, "wb") as f:
         pickle.dump(bundle, f)
-    print(f"SUCCESS: Ensemble successfully mapped real biological data and saved!")
+    print("SUCCESS: Ensemble successfully mapped real biological data and saved!")
 
 def main():
     print("=========================================================")
