@@ -21,7 +21,7 @@ def evaluate_cnn():
         return None
         
     model = GenomicCNN(seq_len=1000)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=True))
     model.eval()
     
     ndm1 = "ATGGAATTGCCCAATATTATGCACCCGGTCGCGAAGCTGAGC"

@@ -26,10 +26,10 @@ AMrit Data Ingestion & Preprocessing Pipeline (Layer 1 - Bioinformatic Edition)
 import io
 import re
 import os
-from typing import Dict, List, Optional, Union, Tuple, Any, Set
+from typing import Annotated, Dict, List, Optional, Union, Tuple, Any, Set
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 # Bioinformatic imports
 from Bio import SeqIO
@@ -358,9 +358,9 @@ class GenomicSequenceIngestor:
 
     @classmethod
     def parse_fasta(cls, fasta_content_or_path: Union[str, bytes]) -> List[Dict[str, Any]]:
-        if isinstance(fasta_content_or_path, str) and os.path.exists(fasta_content_or_path):
-            handle = open(fasta_content_or_path, "r")
-        elif isinstance(fasta_content_or_path, str):
+        # Content is always treated as data, never as a filesystem path: this method
+        # receives untrusted API input, and path probing would allow local file reads.
+        if isinstance(fasta_content_or_path, str):
             handle = io.StringIO(fasta_content_or_path)
         else:
             handle = io.StringIO(fasta_content_or_path.decode("utf-8", errors="ignore"))
@@ -387,9 +387,9 @@ class GenomicSequenceIngestor:
 
     @classmethod
     def parse_fastq(cls, fastq_content_or_path: Union[str, bytes], min_qscore: float = 20.0) -> Dict[str, Any]:
-        if isinstance(fastq_content_or_path, str) and os.path.exists(fastq_content_or_path):
-            handle = open(fastq_content_or_path, "r")
-        elif isinstance(fastq_content_or_path, str):
+        # Content is always treated as data, never as a filesystem path: this method
+        # receives untrusted API input, and path probing would allow local file reads.
+        if isinstance(fastq_content_or_path, str):
             handle = io.StringIO(fastq_content_or_path)
         else:
             handle = io.StringIO(fastq_content_or_path.decode("utf-8", errors="ignore"))
@@ -559,23 +559,33 @@ VALID_PATHOGENS = [
     "Neisseria gonorrhoeae"
 ]
 
+# Request size limits (untrusted API input)
+MAX_RAW_SEQUENCE_CHARS = 1_000_000
+MAX_VARIANTS = 64
+MAX_VARIANT_TOKEN_CHARS = 64
+MAX_SHORT_TEXT_CHARS = 128
+
+
 class SingleIsolateInput(BaseModel):
-    sample_id: Optional[str] = "ISO_PATIENT"
-    raw_sequence: Optional[str] = None
-    pathogen_species: str = Field(..., description="Target bacterial pathogen")
-    detected_variants: Optional[List[str]] = Field(default_factory=list, description="List of detected mutations/genes (e.g. gyrA_S83L, blaNDM-1)")
-    tested_antibiotic: Optional[str] = "Ciprofloxacin"
-    mic_value_mg_l: Optional[float] = None
-    isolate_source: Optional[str] = "clinical"
-    geographic_region: Optional[str] = "National Average"
-    collection_year: Optional[int] = 2024
+    sample_id: Optional[str] = Field("ISO_PATIENT", max_length=MAX_SHORT_TEXT_CHARS)
+    raw_sequence: Optional[str] = Field(None, max_length=MAX_RAW_SEQUENCE_CHARS)
+    pathogen_species: str = Field(..., max_length=MAX_SHORT_TEXT_CHARS, description="Target bacterial pathogen")
+    detected_variants: List[Annotated[str, StringConstraints(max_length=MAX_VARIANT_TOKEN_CHARS)]] = Field(
+        default_factory=list, max_length=MAX_VARIANTS,
+        description="List of detected mutations/genes (e.g. gyrA_S83L, blaNDM-1)")
+    tested_antibiotic: Optional[str] = Field("Ciprofloxacin", max_length=MAX_SHORT_TEXT_CHARS)
+    mic_value_mg_l: Optional[float] = Field(None, ge=0)
+    isolate_source: Optional[str] = Field("clinical", max_length=MAX_SHORT_TEXT_CHARS)
+    geographic_region: Optional[str] = Field("National Average", max_length=MAX_SHORT_TEXT_CHARS)
+    collection_year: Optional[int] = Field(2024, ge=1900, le=2100)
 
     @field_validator("pathogen_species")
+    @classmethod
     def validate_pathogen(cls, v):
         for p in VALID_PATHOGENS:
             if p.lower() in v.lower():
                 return p
-        return v
+        raise ValueError(f"Unsupported pathogen species. Supported: {', '.join(VALID_PATHOGENS)}")
 
 
 class UniversalIngestRouter:

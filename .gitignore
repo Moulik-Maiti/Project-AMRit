@@ -40,3 +40,7 @@ test_output.log
 
 # VS Code
 .vscode/settings.json
+
+# Generated at runtime
+amr_knowledge_graph.html
+.streamlit/secrets.toml

@@ -73,6 +73,17 @@ This script will automatically:
 2. Start the **Streamlit Frontend Dashboard** on port 8510.
 3. Provide a local URL to click.
 
+### Configuration (production deployments)
+| Variable | Where | Default | Purpose |
+|---|---|---|---|
+| `AMRIT_API_URL` | frontend | `https://project-amrit.onrender.com` | Backend base URL (`run.py` sets it to the local backend) |
+| `PORT` / `HOST` | backend | `8000` / `0.0.0.0` | Listen address when run via `python backend/main.py` |
+| `AMRIT_CORS_ORIGINS` | backend | *(none)* | Comma-separated browser origins allowed to call the API directly. Not needed for the Streamlit frontend, which calls the API server-side |
+| `AMRIT_ENABLE_DOCS` | backend | `1` | Set to `0` to hide `/docs`, `/redoc` and `/openapi.json` |
+| `LOG_LEVEL` | backend | `INFO` | Python logging level |
+
+Dependencies are pinned in `requirements.txt` to the versions the bundled models were built with. The pickled ensemble in `models/` is tied to the scikit-learn / XGBoost / LightGBM / TabNet versions, so upgrading them requires retraining. Only deploy model files produced by this project's training scripts, since pickle files can execute code when loaded.
+
 ---
 
 ## 🧪 How to Demo the Pipeline

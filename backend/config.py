@@ -22,6 +22,7 @@ INDIAN_CLINICAL_ECONOMICS_PATH = DATABASES_DIR / "Indian_Clinical_Economics_Anti
 # Model Files
 ENSEMBLE_WEIGHTS_PATH = MODELS_DIR / "amr_ensemble_weights.pkl"
 TABULAR_ENSEMBLE_PATH = MODELS_DIR / "amr_tabular_ensemble.pkl"
+GENOMIC_CNN_WEIGHTS_PATH = MODELS_DIR / "genomic_cnn_weights.pth"
 
 # Verify critical paths exist on startup
 def verify_paths():

@@ -1,0 +1,12 @@
+[server]
+headless = true
+# MB; matches MAX_UPLOAD_BYTES in frontend/app.py
+maxUploadSize = 10
+enableXsrfProtection = true
+enableCORS = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = false
