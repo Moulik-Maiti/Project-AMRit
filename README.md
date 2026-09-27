@@ -81,6 +81,9 @@ This script will automatically:
 | `AMRIT_CORS_ORIGINS` | backend | *(none)* | Comma-separated browser origins allowed to call the API directly. Not needed for the Streamlit frontend, which calls the API server-side |
 | `AMRIT_ENABLE_DOCS` | backend | `1` | Set to `0` to hide `/docs`, `/redoc` and `/openapi.json` |
 | `LOG_LEVEL` | backend | `INFO` | Python logging level |
+| `AMRIT_NUM_THREADS` | backend | `1` | CPU threads for model inference. Keep at 1 on CPU-limited hosts (e.g. Render free tier); extra threads make single-isolate predictions slower |
+| `AMRIT_BACKEND_WAKE_TIMEOUT` | frontend | `300` | Seconds to wait for a sleeping backend (Render free-tier cold start) before giving up |
+| `AMRIT_PREDICT_TIMEOUT` | frontend | `180` | Read timeout in seconds for a prediction request |
 
 Dependencies are pinned in `requirements.txt` to the versions the bundled models were built with. The pickled ensemble in `models/` is tied to the scikit-learn / XGBoost / LightGBM / TabNet versions, so upgrading them requires retraining. Only deploy model files produced by this project's training scripts, since pickle files can execute code when loaded.
 

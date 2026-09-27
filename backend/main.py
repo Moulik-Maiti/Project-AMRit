@@ -17,11 +17,20 @@ Environment variables:
                          Streamlit frontend calls the API server-side and needs no CORS)
   - AMRIT_ENABLE_DOCS  : "1" to expose /docs and /openapi.json (default: enabled)
   - PORT               : listen port when run as a script (default: 8000)
+  - AMRIT_NUM_THREADS  : CPU threads for numpy/torch/XGBoost/LightGBM inference (default: 1)
 """
 
 import logging
 import os
 import sys
+
+# Must run before numpy/torch/xgboost/lightgbm are imported. These libraries size their
+# thread pools from the host's core count, which on CPU-throttled containers (e.g. Render's
+# 0.1-CPU free tier) makes single-isolate predictions many times slower. One thread is also
+# faster locally for this workload (~2x measured on a 16-core machine).
+_num_threads = os.environ.get("AMRIT_NUM_THREADS", "1")
+for _var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_var, _num_threads)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
