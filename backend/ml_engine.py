@@ -90,6 +90,40 @@ class AMRStackingEngine:
     """Production Stacking Classifier & Cheminformatics Explainability Engine."""
 
 
+    @staticmethod
+    def get_canonical_feature_name(raw_name: str) -> str:
+        """Translates internal feature indices into interpretable clinical/cheminformatic descriptors."""
+        if raw_name == "Mutant":
+            return "Genomic Variant Marker"
+        if raw_name == "Drug":
+            return "Tested Antibiotic Compound"
+        if raw_name == "Class":
+            return "Antibiotic Pharmacological Class"
+        if raw_name.startswith("Chem_F"):
+            try:
+                idx = int(raw_name.replace("Chem_F", ""))
+                admet_names = [
+                    "Molecular Weight (MW)",
+                    "Lipophilicity (MolLogP)",
+                    "Polar Surface Area (TPSA)",
+                    "H-Bond Acceptor Count (HBA)",
+                    "H-Bond Donor Count (HBD)",
+                    "Rotatable Bond Count",
+                    "Ring Count",
+                    "Aromatic Ring Count",
+                    "Fraction sp3 Carbons (Fsp3)",
+                    "Heavy Atom Count"
+                ]
+                if idx < 10:
+                    return admet_names[idx]
+                if 10 <= idx <= 265:
+                    return f"Morgan Substructure Motif (Bit {idx - 10})"
+                if 266 <= idx <= 432:
+                    return f"MACCS Structural Key {idx - 266}"
+            except ValueError:
+                pass
+        return raw_name
+
     def generate_clinical_chem_features(self, smiles):
         
         mol = Chem.MolFromSmiles(smiles)
@@ -149,6 +183,21 @@ class AMRStackingEngine:
             self.numeric_cols = self.bundle["numeric_cols"]
             self.feature_names = self.bundle["feature_names"]
             self.explainer = shap.TreeExplainer(self.xgb)
+            # Runtime mathematical verification of TreeSHAP additivity on fitted Level-0 XGBoost
+            try:
+                _test_vec = np.zeros((1, len(self.feature_names)), dtype=np.float32)
+                _test_shap = self.explainer.shap_values(_test_vec)
+                # TreeExplainer calculates its true expected_value during the first shap_values call
+                ev = self.explainer.expected_value
+                self.shap_base_value = float(ev[0] if isinstance(ev, (list, np.ndarray)) else ev)
+                _test_margin = float(self.xgb.predict(_test_vec, output_margin=True)[0])
+                _discrepancy = abs(float(np.sum(_test_shap[0])) + self.shap_base_value - _test_margin)
+                self.shap_verified = bool(_discrepancy < 1e-4)
+                logger.info("SHAP TreeExplainer verified against Level-0 XGBoost (additivity diff: %.2e, base_val: %.4f)", _discrepancy, self.shap_base_value)
+            except Exception as e:  # noqa: BLE001
+                self.shap_verified = False
+                self.shap_base_value = 0.0
+                logger.warning("SHAP verification check encountered error: %s", e)
             self.is_loaded = True
             logger.info("Loaded stacking ensemble weights from %s", WEIGHTS_PATH)
         else:
@@ -297,13 +346,35 @@ class AMRStackingEngine:
                 prob_resistant = 1.0
                 pred_mic_mg_l = max(pred_mic_mg_l, 64.0)
 
-            # TreeSHAP local attribution for this drug
-            assert self.explainer is not None  # set together with is_loaded, checked above
-            shap_values = self.explainer.shap_values(x_vec)
-            top_features_idx = np.argsort(-np.abs(shap_values[0]))[:5]
-            shap_attributions = {
-                self.feature_names[i]: float(shap_values[0][i]) for i in top_features_idx
-            }
+            # TreeSHAP local attribution for Level-0 XGBoost decision margin
+            shap_attributions = {}
+            shap_details = []
+            shap_error = None
+            if self.explainer is not None:
+                try:
+                    shap_values = self.explainer.shap_values(x_vec)
+                    top_features_idx = np.argsort(-np.abs(shap_values[0]))[:5]
+                    for idx in top_features_idx:
+                        raw_name = self.feature_names[idx]
+                        canonical_name = self.get_canonical_feature_name(raw_name)
+                        attribution_val = round(float(shap_values[0][idx]), 4)
+                        shap_attributions[canonical_name] = attribution_val
+                        shap_details.append({
+                            "feature_name": canonical_name,
+                            "raw_identifier": raw_name,
+                            "attribution_value": attribution_val,
+                            "direction": "Increases Resistance Risk" if attribution_val > 0 else "Favors Susceptibility",
+                            "clinical_relevance": "Direct genomic determinant" if idx == 0 else (
+                                "Antibiotic compound identifier" if idx == 1 else (
+                                    "Antibiotic class baseline" if idx == 2 else (
+                                        "Physicochemical/ADMET envelope property" if idx < 13 else "Molecular substructure motif"
+                                    )
+                                )
+                            )
+                        })
+                except Exception as ex:  # noqa: BLE001
+                    logger.warning("SHAP attribution computation failed for %s: %s", drug, ex)
+                    shap_error = str(ex)
 
             # Dynamic continuous efficacy score
             conf_susc = 1.0 - prob_resistant
@@ -349,11 +420,21 @@ class AMRStackingEngine:
                 "in_clinical_spectrum": in_spectrum,
                 "is_intrinsically_resistant": is_intrinsic,
                 "intrinsic_mechanism": intrinsic_mech,
+                "biomarker_gene": gene,
                 "exclusion_reason": exclusion_reason,
                 "cost_per_dose_inr": cost,
                 "who_aware_category": aware_cat,
                 "dynamic_efficacy_score": score,
                 "shap_top_attributions": shap_attributions,
+                "shap_explanation_details": shap_details,
+                "shap_metadata": {
+                    "verified": getattr(self, "shap_verified", False),
+                    "base_value": round(getattr(self, "shap_base_value", 0.0), 4),
+                    "explained_model": "Level-0 Gradient Boosted Classifier (XGBoost)",
+                    "feature_space_dim": len(self.feature_names),
+                    "status": "computed" if not shap_error else f"fallback: {shap_error}",
+                    "epistemic_scope": "TreeSHAP attributes Level-0 XGBoost log-odds margin. Stacking meta-learner and biophysical envelope rules provide final clinical consensus."
+                },
                 "level0_probabilities": {
                     "xgboost": round(p_xgb, 4),
                     "lightgbm": round(p_lgb, 4),
@@ -388,13 +469,28 @@ class AMRStackingEngine:
                     "clinical_rationale": data["clinical_rationale"]
                 })
             else:
+                # Select an accurate, human-interpretable top driver for rejected drugs
+                top_driver_name = "Acquired Mutation"
+                drug_gene = data.get("biomarker_gene")
+                if data.get("is_intrinsically_resistant"):
+                    top_driver_name = "Intrinsic Envelope Barrier"
+                elif drug_gene and drug_gene not in ("WT", "Unknown"):
+                    top_driver_name = f"Genomic Mutation: {drug_gene}"
+                elif data.get("shap_top_attributions"):
+                    # Select the strongest positive attribution pushing towards resistance
+                    pos_drivers = [k for k, v in data["shap_top_attributions"].items() if v > 0]
+                    if pos_drivers:
+                        top_driver_name = pos_drivers[0]
+                    else:
+                        top_driver_name = next(iter(data["shap_top_attributions"]))
+
                 rejected.append({
                     "drug": drug,
                     "drug_class": data["drug_class"],
                     "reason": "Intrinsic Resistance" if data["is_intrinsically_resistant"] else "Acquired Genomic Resistance",
                     "resistance_probability": data["resistance_probability"],
                     "predicted_mic_mg_l": data["predicted_mic_mg_l"],
-                    "top_driver": next(iter(data["shap_top_attributions"])) if data["shap_top_attributions"] else "Mutation"
+                    "top_driver": top_driver_name
                 })
 
         # Rank recommended treatments by dynamic ML efficiency score
