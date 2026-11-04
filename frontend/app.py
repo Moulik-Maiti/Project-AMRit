@@ -1,8 +1,4 @@
-# ==================================================================
-# 🔗 FRONTEND UI DASHBOARD
-# This file connects to the FastAPI backend (AMRIT_API_URL).
-# Data flows out via requests.post() and JSON is returned here to render.
-# ==================================================================
+# Streamlit interface for the AMRit API.
 import os
 import threading
 import time
@@ -14,7 +10,7 @@ from pyvis.network import Network
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-st.set_page_config(page_title="AMRit AI: Sequence-to-Treatment", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="AMRit | Resistance Analysis", layout="wide")
 
 st.markdown("""
 <style>
@@ -34,11 +30,14 @@ st.markdown("""
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "logo.jpg")
 st.sidebar.image(LOGO_PATH, width=120)
-st.sidebar.markdown("## AMRit AI Platform")
-st.sidebar.info("Sequence-to-Treatment clinical decision support system.")
-st.sidebar.caption("Research decision-support tool. Confirm all results with laboratory AST before prescribing.")
+st.sidebar.markdown("## AMRit")
+st.sidebar.info("Research prototype for antimicrobial resistance analysis.")
+st.sidebar.caption(
+    "Not a diagnostic tool or treatment recommendation. Confirm results with validated "
+    "laboratory antimicrobial susceptibility testing."
+)
 
-st.title("🧬 AMRit: AI Clinical Antibiogram Pipeline")
+st.title("AMRit: Antimicrobial Resistance Analysis")
 
 FASTAPI_URL = os.environ.get("AMRIT_API_URL", "https://project-amrit.onrender.com").rstrip("/")
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -159,58 +158,56 @@ def fetch_antibiotics() -> list:
     return resp.json().get("drugs", [])
 
 
-def chemistry_logic_for(drug_class: str, variants: list) -> str:
-    """Pick the detected variant that mechanistically explains resistance for this drug class."""
+def variant_note_for(drug_class: str, variants: list) -> str:
+    """Return a cautious note for recognized variant and drug-class pairs."""
     cls = str(drug_class).lower()
     v = " ".join(variants).lower()
     if any(k in cls for k in ("carbapenem", "cephalosporin", "penicillin", "beta")):
         if any(k in v for k in ("ndm", "kpc", "oxa", "ctx", "bla")):
-            return "Cheminformatics: RDKit predicts severe beta-lactamase hydrolysis of pharmacophore ring."
+            return "Possible beta-lactamase association; confirm with phenotypic testing."
         if "mec" in v:
-            return "Cheminformatics: PBP2a conformational change abrogates beta-lactam binding."
+            return "mecA may affect beta-lactam susceptibility; confirm with phenotypic testing."
         if "pena" in v:
-            return "Cheminformatics: Mosaic PBP2 reduces beta-lactam acylation efficiency."
+            return "penA may affect beta-lactam susceptibility; confirm with phenotypic testing."
         if "porin" in v or "omp" in v:
-            return "Cheminformatics: High Molecular Weight & TPSA prevents porin translocation."
+            return "A porin variant may affect drug uptake; confirm with phenotypic testing."
     if "quinolone" in cls and ("gyr" in v or "par" in v):
-        return "Cheminformatics: Loss of critical hydrogen bonding at target binding pocket."
+        return "A target variant may affect quinolone susceptibility; confirm with phenotypic testing."
     if "polymyxin" in cls and "mcr" in v:
-        return "Cheminformatics: Lipid A modification repels cationic peptide charge."
+        return "mcr may be associated with polymyxin resistance; confirm with phenotypic testing."
     if "glycopeptide" in cls and "van" in v:
-        return "Cheminformatics: D-Ala-D-Ala to D-Ala-D-Lac switch prevents glycopeptide binding."
+        return "vanA may be associated with glycopeptide resistance; confirm with phenotypic testing."
     if "rifamycin" in cls and "rpob" in v:
-        return "Cheminformatics: RRDR substitution disrupts rifamycin binding pocket."
+        return "An rpoB variant may affect rifamycin susceptibility; confirm with phenotypic testing."
     if "katg" in v and ("isoniazid" in cls or "isonicotinic" in cls):
-        return "Cheminformatics: Loss of KatG activation prevents isoniazid prodrug conversion."
-    return "Cheminformatics: Intrinsic or envelope-level resistance for this pathogen–drug pair."
+        return "A katG variant may affect isoniazid susceptibility; confirm with phenotypic testing."
+    return "No variant-specific note is available for this drug class."
 
 
 start_backend_warmup()
 
 tab_pipeline, tab_database, tab_network = st.tabs([
-    "🚀 Clinical Pipeline",
-    "💊 Cheminformatics",
-    "🕸️ Knowledge Graph"
+    "Sequence analysis",
+    "Antibiotic data",
+    "Knowledge network"
 ])
 
-# =====================================================================
-# TAB 1: SEAMLESS END-TO-END PIPELINE (STEP-BY-STEP)
-# =====================================================================
+# Sequence analysis
 
 with tab_pipeline:
 
-    # ----------------- STEP 1 -----------------
-    st.markdown("<h3 class='step-header'>Step 1: Genomic Sequence Ingestion</h3>", unsafe_allow_html=True)
+    # Sequence input
+    st.markdown("<h3 class='step-header'>1. Sequence input</h3>", unsafe_allow_html=True)
 
     col1, col2 = st.columns([1, 2])
     with col1:
-        pathogen = st.selectbox("Suspected Pathogen Species", [
+        pathogen = st.selectbox("Pathogen species", [
             "Escherichia coli", "Klebsiella pneumoniae", "Staphylococcus aureus",
             "Pseudomonas aeruginosa", "Acinetobacter baumannii",
             "Mycobacterium tuberculosis", "Neisseria gonorrhoeae"
         ])
     with col2:
-        uploaded_file = st.file_uploader("Upload Patient FASTA Sequence (.fasta)", type=["fasta", "fa", "txt"])
+        uploaded_file = st.file_uploader("Upload a FASTA file", type=["fasta", "fa", "txt"])
 
     mutations_found = []
 
@@ -226,23 +223,32 @@ with tab_pipeline:
                 st.error("File is not valid UTF-8 text. Please upload a plain-text FASTA file.")
 
         if seq_input is not None:
-            with st.spinner("Scanning sequence for resistance markers..."):
+            with st.spinner("Checking demo motifs and requesting target-locus analysis..."):
                 scan = scan_sequence(seq_input)
             mutations_found = scan["markers"]
 
             if mutations_found:
-                st.success(f"✅ **Identified {len(mutations_found)} critical resistance markers:** "
+                st.success(f"Matched {len(mutations_found)} configured demo motifs: "
                            f"`{', '.join(mutations_found)}`")
             else:
-                st.info("✅ Sequence analyzed. **No known resistance markers detected.** (Wild-type/Susceptible)")
+                st.info(
+                    "No configured demo motifs matched. This does not indicate "
+                    "that the isolate is susceptible."
+                )
             if scan["loci"]:
-                st.caption(f"Resistance target loci located: {', '.join(scan['loci'])}")
+                st.caption(f"Target loci returned by the backend: {', '.join(scan['loci'])}")
             if scan["error"]:
-                st.warning(f"Backend sequence scan unavailable ({scan['error']}). Showing local marker scan only.")
+                st.warning(
+                    f"Backend locus analysis unavailable ({scan['error']}). "
+                    "Only configured demo motifs were checked locally."
+                )
 
-    # ----------------- STEP 2 -----------------
-    st.markdown("<h3 class='step-header'>Step 2: Manual Variant Override (Demo Controls)</h3>", unsafe_allow_html=True)
-    st.markdown("Doctors can manually toggle variants identified via secondary PCR or bypass FASTA upload.")
+    # Variant selection
+    st.markdown("<h3 class='step-header'>2. Select variants</h3>", unsafe_allow_html=True)
+    st.markdown(
+        "Choose the variants to include in the prediction request. "
+        "You can use these controls with or without a FASTA file."
+    )
 
     variant_cols = st.columns(3)
     final_mutations = []
@@ -251,14 +257,14 @@ with tab_pipeline:
             if st.checkbox(variant, value=variant in mutations_found):
                 final_mutations.append(variant)
 
-    # ----------------- STEP 3 -----------------
-    st.markdown("<h3 class='step-header'>Step 3: AI Stacking Ensemble Execution</h3>", unsafe_allow_html=True)
+    # Prediction
+    st.markdown("<h3 class='step-header'>3. Request a prediction</h3>", unsafe_allow_html=True)
 
-    analyze_btn = st.button("🚀 Synthesize Clinical Antibiogram", type="primary", width="stretch")
+    analyze_btn = st.button("Run prediction", type="primary", width="stretch")
 
     if analyze_btn:
-        with st.status("🧠 Executing Multi-Model AI Pipeline...", expanded=True) as status:
-            st.write("Running stacking ensemble, RDKit pharmacophore mapping and MIC regression...")
+        with st.status("Requesting prediction...", expanded=True) as status:
+            st.write("Sending the selected pathogen and variants to the prediction service.")
 
             payload = {
                 "pathogen_species": pathogen,
@@ -267,7 +273,7 @@ with tab_pipeline:
             }
             data = None
             if not ensure_backend_ready():
-                status.update(label="❌ Analysis Failed", state="error")
+                status.update(label="Prediction unavailable", state="error")
                 st.error("The prediction engine did not start in time. Please try again in a minute.")
             else:
                 try:
@@ -276,19 +282,19 @@ with tab_pipeline:
                     if pred_res.ok:
                         data = pred_res.json()
                     else:
-                        status.update(label="❌ Analysis Failed", state="error")
+                        status.update(label="Prediction failed", state="error")
                         st.error(f"Prediction service error — {api_error_message(pred_res)}")
                 except requests.Timeout:
-                    status.update(label="❌ Analysis Failed", state="error")
+                    status.update(label="Prediction failed", state="error")
                     st.error(f"The prediction took longer than {PREDICT_TIMEOUT_S:.0f}s. "
                              "The server may be under load; please try again.")
                 except requests.RequestException as e:
-                    status.update(label="❌ Analysis Failed", state="error")
+                    status.update(label="Prediction failed", state="error")
                     st.error(f"Prediction service unreachable ({e.__class__.__name__}). "
                              "Please try again shortly.")
 
             if data is not None:
-                status.update(label="✅ Analysis Complete!", state="complete", expanded=False)
+                status.update(label="Prediction received", state="complete", expanded=False)
 
         if data is not None:
             st.markdown("---")
@@ -296,54 +302,54 @@ with tab_pipeline:
             recs = data.get("recommended_treatments", [])
             rejects = data.get("rejected_drugs", [])
 
-            # MDR/XDR Logic
+            # Prototype category based on the number of rejected drug classes.
             rejected_classes = {rj.get('drug_class') for rj in rejects if rj.get('drug_class')}
             total_classes = {d.get('drug_class') for d in (recs + rejects) if d.get('drug_class')}
 
             if len(rejected_classes) >= max(3, len(total_classes) - 1) and len(total_classes) > 2:
-                classification, color = "XDR (Extensively Drug-Resistant)", "#ef4444"
+                classification, color = "Many drug classes rejected", "#ef4444"
             elif len(rejected_classes) >= 3:
-                classification, color = "MDR (Multi-Drug Resistant)", "#f97316"
+                classification, color = "Several drug classes rejected", "#f97316"
             elif rejected_classes:
-                classification, color = "Resistant (Targeted)", "#f59e0b"
+                classification, color = "Some drug classes rejected", "#f59e0b"
             else:
-                classification, color = "Fully Susceptible", "#22c55e"
+                classification, color = "No drug classes rejected", "#22c55e"
 
             st.markdown(f'''
             <div class="card-container">
                 <div class="metric-card" style="border-top: 4px solid {color};">
-                    <div class="metric-title">Predicted Phenotype</div>
+                    <div class="metric-title">Prototype resistance category</div>
                     <div class="metric-value" style="color: {color};">{classification}</div>
                 </div>
                 <div class="metric-card" style="border-top: 4px solid #22c55e;">
-                    <div class="metric-title">Viable Therapeutics</div>
-                    <div class="metric-value" style="color: #22c55e;">{len(recs)} Safe Options</div>
+                    <div class="metric-title">Recommended candidates</div>
+                    <div class="metric-value" style="color: #22c55e;">{len(recs)}</div>
                 </div>
                 <div class="metric-card" style="border-top: 4px solid #ef4444;">
-                    <div class="metric-title">Contraindicated</div>
-                    <div class="metric-value" style="color: #ef4444;">{len(rejects)} High-Risk</div>
+                    <div class="metric-title">Rejected by service</div>
+                    <div class="metric-value" style="color: #ef4444;">{len(rejects)}</div>
                 </div>
             </div>
             ''', unsafe_allow_html=True)
 
-            st.markdown("#### ✅ Viable Therapeutics")
+            st.markdown("#### Recommended candidates")
             if recs:
                 rec_df = pd.DataFrame(recs)
-                rec_df["Clinical Efficacy Score"] = rec_df["pharmacoeconomic_efficiency_score"].apply(
+                rec_df["Pharmacoeconomic score"] = rec_df["pharmacoeconomic_efficiency_score"].apply(
                     lambda x: f"{float(x):.1f}%")
                 rec_df["Predicted MIC"] = rec_df["predicted_mic_mg_l"].apply(lambda x: f"{round(float(x), 2)} mg/L")
                 rec_df["Breakpoint"] = rec_df["eucast_breakpoint_mg_l"].apply(lambda x: f"≤ {x} mg/L")
                 rec_df["Cost (INR)"] = rec_df["cost_per_dose_inr"].apply(lambda x: f"₹{float(x):,.0f}")
 
                 display_rec = rec_df.loc[:, [
-                    "drug", "drug_class", "administration_route", "Clinical Efficacy Score",
+                    "drug", "drug_class", "administration_route", "Pharmacoeconomic score",
                     "Predicted MIC", "Breakpoint", "who_aware_category", "Cost (INR)", "clinical_rationale"
                 ]].rename(columns={
                     "drug": "Drug",
                     "drug_class": "Class",
                     "administration_route": "Route",
                     "who_aware_category": "WHO AWaRe",
-                    "clinical_rationale": "Clinical Rationale"
+                    "clinical_rationale": "Service rationale"
                 })
 
                 styled_rec = display_rec.style.set_properties(subset=None, **{
@@ -354,22 +360,22 @@ with tab_pipeline:
 
                 st.dataframe(styled_rec, width="stretch", height=350)
             else:
-                st.error("No viable therapeutics found. Strain is pan-resistant.")
+                st.info("The service returned no recommended candidates.")
 
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("#### ❌ Out of Treatment Range (Resistant Drugs)")
+            st.markdown("#### Drugs classified as resistant by the service")
             if rejects:
                 rej_df = pd.DataFrame(rejects)
-                rej_df["Chemistry Logic Engine"] = rej_df["drug_class"].apply(
-                    lambda c: chemistry_logic_for(c, final_mutations))
+                rej_df["Variant-based note"] = rej_df["drug_class"].apply(
+                    lambda c: variant_note_for(c, final_mutations))
                 rej_df["Predicted MIC"] = rej_df["predicted_mic_mg_l"].apply(lambda x: f"{round(float(x), 2)} mg/L")
 
                 display_rej = rej_df.loc[:, [
-                    "drug", "drug_class", "Predicted MIC", "reason", "Chemistry Logic Engine"
+                    "drug", "drug_class", "Predicted MIC", "reason", "Variant-based note"
                 ]].rename(columns={
                     "drug": "Drug",
                     "drug_class": "Class",
-                    "reason": "Genomic Rationale"
+                    "reason": "Service rationale"
                 })
 
                 styled_rej = display_rej.style.set_properties(subset=None, **{
@@ -380,21 +386,21 @@ with tab_pipeline:
 
                 st.dataframe(styled_rej, width="stretch", height=350)
             else:
-                st.success("No resistant drugs detected! Fully susceptible strain.")
+                st.info("The service did not classify any drugs as resistant.")
 
 
-# =====================================================================
-# TAB 2 & 3: DATABASE & GRAPH
-# =====================================================================
+# Reference data and knowledge network
 
 with tab_database:
-    st.subheader("💊 RDKit Cheminformatics Database")
+    st.subheader("Antibiotic reference data")
     # This tab renders on every page load, so never block it on a cold start: if the backend
     # is still waking (the warm-up thread is already on it), say so and offer a retry.
     drugs_data = None
     if not backend_is_ready(read_timeout=5):
-        st.info("⏳ The prediction engine is waking up (this can take 2-3 minutes after a period "
-                "of inactivity). The database will load once it is ready.")
+        st.info(
+            "The backend is not ready. Reference data will load when it becomes available; "
+            "after inactivity, this can take a few minutes."
+        )
     else:
         try:
             drugs_data = fetch_antibiotics()
@@ -410,7 +416,7 @@ with tab_database:
     elif drugs_data is not None:
         st.info("No antibiotics returned by the database.")
     else:
-        st.button("🔄 Retry loading database", key="retry_database")
+        st.button("Retry loading data", key="retry_database")
 
 
 @st.cache_resource
@@ -439,6 +445,10 @@ def build_knowledge_graph_html() -> str:
 
 
 with tab_network:
-    st.subheader("🕸️ Interactive Knowledge Network")
+    st.subheader("Illustrative knowledge network")
+    st.caption(
+        "Static example relationships. They are not generated from the uploaded sequence "
+        "or used as a clinical assessment."
+    )
     # Trusted, server-generated HTML only (no user input reaches the graph)
     st.iframe(build_knowledge_graph_html(), height=550)

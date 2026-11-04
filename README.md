@@ -1,100 +1,62 @@
-<div align="center">
+# AMRit
 
-# 🧬 AMrit: End-to-End AI Clinical Antibiogram Pipeline
+AMRit is a research prototype for exploring antimicrobial resistance data. It includes a
+Streamlit interface, a FastAPI service, model artifacts, and reference datasets.
 
+> **Limitations:** This software is not a diagnostic tool and does not provide treatment
+> recommendations. Its outputs have not been established as a substitute for validated
+> laboratory antimicrobial susceptibility testing (AST). Do not use them to make patient
+> care decisions.
 
+## What the application does
 
+- The Streamlit interface can check uploaded sequence text for a small set of exact-match
+  demo motifs defined in `frontend/app.py`. This is not general-purpose variant calling.
+- The interface also sends the sequence to `POST /api/v1/ingest/sequence` and displays
+  target loci returned by the backend. Those loci do not automatically populate the
+  variant selections sent for prediction.
+- The user selects a pathogen and variants. The interface sends those selections to
+  `POST /api/v1/predict/isolate`.
+- The backend returns recommended and rejected drug records and associated estimates.
+  The interface displays those records; its resistance summary is a simple category
+  based on how many drug classes the service rejects.
+- `backend/chemistry_engine.py` uses RDKit to calculate chemical descriptors from the
+  reference data. A descriptor or model output is not laboratory evidence of resistance.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=Streamlit&logoColor=white)](https://streamlit.io/)
+## Run locally
 
-*A Next-Generation Genomic & Cheminformatics Platform for combating Antimicrobial Resistance (AMR).* 
+Use Python 3.10 or later. From the repository root:
 
-</div>
-
-
-
-
-AMrit (Antimicrobial Resistance Intelligence) is a robust, decoupled AI platform designed to take raw bacterial DNA sequences (FASTA) and output actionable clinical antibiograms. It determines exactly which antibiotics are safe to use, which are contraindicated (Resistant), and precisely *why* using cheminformatics.
-
----
-
-## 🏗️ System Architecture & Backend Flow
-
-The backend is built as a high-performance **FastAPI microservice** (`backend/main.py`), which orchestrates three distinct AI engines. 
-
-### 1. The Backend Engines (`/backend/`)
-* **`dl_genomics.py` (Genomic Extraction):** When a sequence is uploaded, this module runs a **PyTorch 1D-CNN** to scan the raw DNA sequence and extract specific clinical resistance markers (e.g., `blaNDM-1`, `mcr-1`, `gyrA_S83L`).
-* **`chemistry_engine.py` (Cheminformatics):** Utilizes **RDKit** to map the extracted mutations against an antibiotic database. It generates precise chemical reasoning for why a drug fails (e.g., *beta-lactamase hydrolysis of pharmacophore ring* or *porin translocation blockage*).
-* **`ml_engine.py` (Stacking Meta-Learner):** The core intelligence. It loads pre-trained weights (`/models/amr_ensemble_weights.pkl`) for an **XGBoost & LightGBM Stacking Ensemble**. It combines the genomic markers with the RDKit chemistry descriptors to calculate exact Pharmacodynamic MICs (Minimum Inhibitory Concentrations) and authentic Clinical Efficacy Scores.
-
-### 2. The Total Pipeline Flow
-1. **Input:** Raw FASTA DNA string is POSTed to the backend.
-2. **Extraction:** PyTorch identifies the resistance loci.
-3. **Synthesis:** The Stacking Ensemble pairs those loci with 14+ different antibiotics.
-4. **Scoring:** The AI calculates the probability of resistance and the MIC value.
-5. **Output:** The API returns a unified JSON containing Recommended Therapeutics (with Efficacy Scores) and Rejected Therapeutics (with RDKit Chemistry Logic).
-
----
-
-## 🖥️ Frontend & API Connection
-
-The user interface is an interactive dashboard built with **Streamlit** (`frontend/app.py`).
-
-### How they connect:
-* The backend runs a Uvicorn server on **`http://localhost:8000`**.
-* The Streamlit frontend runs on **`http://localhost:8510`**.
-* **Communication:** The frontend is completely decoupled. It communicates with the backend exclusively via REST API HTTP calls. 
-  - `POST /api/v1/ingest/sequence`: Used to upload the FASTA file and trigger `dl_genomics.py` to extract mutations.
-  - `POST /api/v1/predict/isolate`: Used to send the extracted mutations to `ml_engine.py` to get the final clinical antibiogram (Drugs, Scores, RDKit Logic).
-
----
-
-## 🚀 How to Run the Application
-
-This repository comes pre-packaged with a launcher script that handles both the frontend and backend simultaneously.
-
-### Step 1: Install Dependencies
-Ensure you have Python 3.10+ installed. Open your terminal in this directory and run:
 ```bash
 pip install -r requirements.txt
-```
-
-### Step 2: Launch the Servers
-Run the unified launcher script:
-```bash
 python run.py
 ```
-This script will automatically:
-1. Start the **FastAPI Backend Server** on port 8000.
-2. Start the **Streamlit Frontend Dashboard** on port 8510.
-3. Provide a local URL to click.
 
-### Configuration (production deployments)
-| Variable | Where | Default | Purpose |
+The launcher starts the FastAPI backend on port `8000` and the Streamlit interface on
+port `8510`.
+
+## Configuration
+
+| Variable | Component | Default | Purpose |
 |---|---|---|---|
-| `AMRIT_API_URL` | frontend | `https://project-amrit.onrender.com` | Backend base URL (`run.py` sets it to the local backend) |
-| `PORT` / `HOST` | backend | `8000` / `0.0.0.0` | Listen address when run via `python backend/main.py` |
-| `AMRIT_CORS_ORIGINS` | backend | *(none)* | Comma-separated browser origins allowed to call the API directly. Not needed for the Streamlit frontend, which calls the API server-side |
-| `AMRIT_ENABLE_DOCS` | backend | `1` | Set to `0` to hide `/docs`, `/redoc` and `/openapi.json` |
-| `LOG_LEVEL` | backend | `INFO` | Python logging level |
-| `AMRIT_NUM_THREADS` | backend | `1` | CPU threads for model inference. Keep at 1 on CPU-limited hosts (e.g. Render free tier); extra threads make single-isolate predictions slower |
-| `AMRIT_BACKEND_WAKE_TIMEOUT` | frontend | `300` | Seconds to wait for a sleeping backend (Render free-tier cold start) before giving up |
-| `AMRIT_PREDICT_TIMEOUT` | frontend | `180` | Read timeout in seconds for a prediction request |
+| `AMRIT_API_URL` | Frontend | `https://project-amrit.onrender.com` | Backend base URL; `run.py` sets the local backend URL |
+| `PORT` / `HOST` | Backend | `8000` / `0.0.0.0` | Listen address when running `python backend/main.py` |
+| `AMRIT_CORS_ORIGINS` | Backend | *(none)* | Comma-separated browser origins allowed to call the API |
+| `AMRIT_ENABLE_DOCS` | Backend | `1` | Set to `0` to hide `/docs`, `/redoc`, and `/openapi.json` |
+| `LOG_LEVEL` | Backend | `INFO` | Python logging level |
+| `AMRIT_NUM_THREADS` | Backend | `1` | Thread count for numerical libraries during inference |
+| `AMRIT_BACKEND_WAKE_TIMEOUT` | Frontend | `300` | Seconds to wait for the backend to become ready |
+| `AMRIT_PREDICT_TIMEOUT` | Frontend | `180` | Read timeout for a prediction request, in seconds |
 
-Dependencies are pinned in `requirements.txt` to the versions the bundled models were built with. The pickled ensemble in `models/` is tied to the scikit-learn / XGBoost / LightGBM / TabNet versions, so upgrading them requires retraining. Only deploy model files produced by this project's training scripts, since pickle files can execute code when loaded.
+Dependency versions are pinned because the stored model artifacts may depend on specific
+versions of scikit-learn and the model libraries. Pickle files can execute code when
+loaded; only use model files from a trusted source.
 
----
+## Sample data
 
-## 🧪 How to Demo the Pipeline
+Sample FASTA files are in `demo_samples/`. To try the interface, start the application
+and upload one of these files. The frontend only matches the exact demo motifs configured
+in its source; a missing match does not mean that the sample is susceptible. Select
+variants manually to send them to the prediction endpoint.
 
-If you are presenting this project, follow this exact workflow:
-
-1. Open **`http://localhost:8510`** in your browser.
-2. We have provided custom sample genomes in the **`/demo_samples/`** folder. 
-3. Drag and drop `Demo_E_coli_Superbug_Joint.fasta` into the Step 1 file uploader. 
-4. The backend will instantly extract multiple mutations (`blaNDM-1` and `penA_mosaic`).
-5. Click **"Synthesize Clinical Antibiogram"**. The app will dramatically cycle through the AI initialization steps before presenting the final XDR/MDR Clinical Report!
+See [CODE_TOUR_FOR_JUDGES.md](CODE_TOUR_FOR_JUDGES.md) for a brief guide to the request flow.

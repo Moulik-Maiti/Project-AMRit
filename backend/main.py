@@ -120,7 +120,7 @@ def predict_isolate_antibiogram(isolate: SingleIsolateInput):
         return ml_engine.predict_isolate(isolate.model_dump())
     except Exception:
         logger.exception("Prediction failed")
-        raise HTTPException(status_code=500, detail="Prediction failed.")
+        raise HTTPException(status_code=500, detail="Prediction failed.") from None
 
 
 @app.post("/api/v1/ingest/sequence")
@@ -131,7 +131,7 @@ def ingest_genomic_sequence(req: SequenceUploadRequest):
         results = ingest_router.ingest_payload(req.sequence_data)
     except Exception:
         logger.exception("Sequence ingestion failed")
-        raise HTTPException(status_code=400, detail="Could not parse sequence data.")
+        raise HTTPException(status_code=400, detail="Could not parse sequence data.") from None
     if results.get("status") == "error":
         raise HTTPException(status_code=400, detail=results.get("message", "Unrecognized input format."))
     return results

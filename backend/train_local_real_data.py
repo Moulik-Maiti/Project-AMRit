@@ -95,7 +95,7 @@ def train_cnn_locally(real_motifs):
     y = []
     
     print("Building sequence tensors...")
-    for i in range(num_samples):
+    for _ in range(num_samples):
         seq = "".join(np.random.choice(['A', 'C', 'G', 'T'], size=seq_len))
         is_resistant = np.random.rand() > 0.5
         
@@ -142,14 +142,14 @@ def build_features_and_train_ensemble(patric_df):
     df_train = patric_df.sample(10000)
     data = []
     print("Calculating exact RDKit fingerprints for clinical antibiotics...")
-    for idx, row in df_train.iterrows():
+    for _, row in df_train.iterrows():
         drug_name = str(row['antibiotic']).capitalize()
         is_resistant = int(row['Target_Phenotype'])
         
         try:
             fp = chem.get_morgan_fingerprint(drug_name)
             physchem = chem.get_physicochemical_descriptors(drug_name)
-        except Exception:  # noqa: BLE001 - fall back to neutral features for unparseable drugs
+        except Exception:  # fall back to neutral features for unparseable drugs
             fp = np.zeros(2048)
             physchem = {"Molecular_Weight": 300, "LogP": 1.5, "TPSA": 100}
             

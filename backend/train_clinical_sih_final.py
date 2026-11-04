@@ -58,7 +58,7 @@ def train_cnn(real_motifs):
     
     num_samples = 3000
     X, y = [], []
-    for i in range(num_samples):
+    for _ in range(num_samples):
         seq = "".join(np.random.choice(['A', 'C', 'G', 'T'], size=seq_len))
         is_resistant = np.random.rand() > 0.5
         if is_resistant and real_motifs:

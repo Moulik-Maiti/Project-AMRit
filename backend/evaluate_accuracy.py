@@ -34,7 +34,7 @@ def evaluate_cnn():
     y_pred = []
     
     print("Testing on 500 clinical/synthetic validation sequences...")
-    for i in range(500):
+    for _ in range(500):
         is_resistant = np.random.rand() > 0.5
         seq = "".join(np.random.choice(['A', 'C', 'G', 'T'], size=1000))
         if is_resistant:
@@ -81,7 +81,7 @@ def evaluate_ensemble():
             start = time.perf_counter()
             try:
                 result = engine.predict_isolate({"pathogen_species": pathogen, "detected_variants": variants})
-            except Exception as e:  # noqa: BLE001 - report every failure and keep checking the rest
+            except Exception as e:  # report every failure and keep checking the rest
                 failures += 1
                 print(f"FAILED {pathogen} {variants}: {e.__class__.__name__}: {e}")
                 continue

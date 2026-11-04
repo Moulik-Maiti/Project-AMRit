@@ -1,28 +1,47 @@
-# 🔍 How to Read This Code (VS Code Tour)
+# Code tour
 
-If you are a judge or developer opening this project in VS Code, here is how to "connect the dots" and trace the exact flow of data through our decoupled architecture.
+This guide follows the sequence and prediction requests through the application.
 
-### 📍 START HERE: The User Interface
-1. Open **`frontend/app.py`**.
-2. Scroll to **Line 66**: `uploaded_file = st.file_uploader(...)`. This is where the raw DNA FASTA string enters the system.
-3. Scroll to **Line 79**: You will see a `requests.post()` sending the FASTA string directly to the Backend via the REST API endpoint `http://127.0.0.1:8000/api/v1/ingest/sequence`.
+## 1. Streamlit interface
 
-### 📍 DOT 2: The API Router
-1. Now, open **`backend/main.py`**.
-2. Scroll to **Line 33**: `@app.post("/api/v1/ingest/sequence")`. This is the exact route that receives the frontend's payload.
-3. Notice how it passes the sequence to our PyTorch CNN module to extract the mutations (e.g., `blaNDM-1`).
+Start with `frontend/app.py`.
 
-### 📍 DOT 3: The Core Artificial Intelligence
-1. Still in `backend/main.py`, look at **Line 55**: `@app.post("/api/v1/predict/isolate")`. This receives the extracted mutations and asks the AI what drugs will work.
-2. Open **`backend/ml_engine.py`**. This is the heart of the project.
-3. Look at **Line 269 (`predict_resistance`)**: This function receives the mutations.
-4. Open **`backend/chemistry_engine.py`**. Notice how it uses the `RDKit` library to calculate the exact chemical descriptors (Molecular Weight, TPSA, LogP) for antibiotics.
-5. Back in `ml_engine.py` (**Line 365**), the XGBoost **Stacking Ensemble** merges the Genomic markers from PyTorch with the Chemical descriptors from RDKit. It calculates the exact Clinical Efficacy Score and returns the JSON payload back to the frontend.
+- The file uploader reads FASTA text and checks it against the small set of exact-match
+  demo motifs in `DEMO_MARKER_MOTIFS`.
+- `scan_sequence` also sends the sequence to the backend ingestion endpoint. The returned
+  target loci are displayed separately; they are not used to select prediction variants.
+- The variant checkboxes build the `detected_variants` list sent to the prediction endpoint.
+- The interface displays the prediction response and adds a simple resistance category
+  based on the number of rejected drug classes.
 
-### 📍 DOT 4: Back to the User
-1. Return to **`frontend/app.py`** at **Line 160**.
-2. The UI receives the `recs` (Recommendations) and `rejects` (Contraindications) from the backend's JSON and renders the massive, color-coded clinical tables you see on the screen!
+The local motif check is for the included demo data. It is not a general-purpose genomic
+variant caller.
 
----
-💡 **To Run the Code in VS Code:**
-Just go to the "Run and Debug" tab on the left panel and click the green play button for **"🚀 Run AMrit Pipeline"**. We have pre-configured `.vscode/launch.json` to handle everything automatically!
+## 2. FastAPI routes
+
+Open `backend/main.py` to see the service routes:
+
+- `POST /api/v1/ingest/sequence` passes sequence text to the ingestion router and returns
+  its result.
+- `POST /api/v1/predict/isolate` passes the submitted isolate data to the prediction
+  engine.
+- `GET /api/v1/database/antibiotics` returns the antibiotic reference records.
+- `GET /api/v1/health` reports service and model status.
+
+## 3. Prediction and chemistry
+
+`backend/ml_engine.py` contains the prediction engine. `backend/chemistry_engine.py`
+contains chemistry-related calculations, including RDKit descriptor generation. Review
+the implementation and model artifacts before interpreting any returned estimate; these
+outputs are not a substitute for laboratory antimicrobial susceptibility testing.
+
+## 4. Run the application
+
+From the repository root, install the dependencies and start both services:
+
+```bash
+pip install -r requirements.txt
+python run.py
+```
+
+The Streamlit interface is available at `http://localhost:8510`.

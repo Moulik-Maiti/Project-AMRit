@@ -110,7 +110,7 @@ def generate_synthetic_antibiogram_dataset(mutants, num_samples=3000):
         try:
             fp = chem.get_morgan_fingerprint(smiles)
             physchem = chem.get_physicochemical_descriptors(smiles)
-        except Exception:  # noqa: BLE001 - fall back to neutral features for unparseable drugs
+        except Exception:  # fall back to neutral features for unparseable drugs
             fp = np.zeros(2048)
             physchem = {"Molecular_Weight": 300, "LogP": 1.5, "TPSA": 100}
         

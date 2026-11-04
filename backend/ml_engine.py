@@ -194,7 +194,7 @@ class AMRStackingEngine:
                 _discrepancy = abs(float(np.sum(_test_shap[0])) + self.shap_base_value - _test_margin)
                 self.shap_verified = bool(_discrepancy < 1e-4)
                 logger.info("SHAP TreeExplainer verified against Level-0 XGBoost (additivity diff: %.2e, base_val: %.4f)", _discrepancy, self.shap_base_value)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 self.shap_verified = False
                 self.shap_base_value = 0.0
                 logger.warning("SHAP verification check encountered error: %s", e)
@@ -240,8 +240,7 @@ class AMRStackingEngine:
             self._chem_feature_cache[drug] = chem_features
 
         raw_vec = np.hstack([cat_vec, chem_features]).astype(np.float32)
-        feature_vector = self.scaler.transform(raw_vec.reshape(1, -1))[0]
-        return feature_vector
+        return self.scaler.transform(raw_vec.reshape(1, -1))[0]
 
     def predict_isolate(self, isolate_input: dict) -> dict:
         """
@@ -253,7 +252,7 @@ class AMRStackingEngine:
 
         pathogen = isolate_input.get("pathogen_species", "Escherichia coli")
         variants = isolate_input.get("detected_variants", [])
-        raw_sequence = isolate_input.get("raw_sequence", None)
+        raw_sequence = isolate_input.get("raw_sequence")
         
         # 0. Deep Learning Sequence Scan
         dl_confidence = None
@@ -372,7 +371,7 @@ class AMRStackingEngine:
                                 )
                             )
                         })
-                except Exception as ex:  # noqa: BLE001
+                except Exception as ex:
                     logger.warning("SHAP attribution computation failed for %s: %s", drug, ex)
                     shap_error = str(ex)
 
