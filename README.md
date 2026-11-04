@@ -35,6 +35,14 @@ python run.py
 The launcher starts the FastAPI backend on port `8000` and the Streamlit interface on
 port `8510`.
 
+## Deploy the API on Vercel
+
+The Vercel entrypoint is configured as `backend.main:app` in `pyproject.toml`. Import
+this repository into Vercel with the repository root as the project root; Vercel will
+use the root `requirements.txt` to install dependencies and route requests to the
+FastAPI application. The Vercel deployment serves the API only. Deploy the Streamlit
+interface separately and set its `AMRIT_API_URL` to the Vercel deployment URL.
+
 ## Configuration
 
 | Variable | Component | Default | Purpose |
